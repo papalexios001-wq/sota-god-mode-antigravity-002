@@ -217,20 +217,39 @@ const analyzeCompetitors = async (keyword: string, serperApiKey: string): Promis
 const discoverPostIdAndEndpoint = async (url: string): Promise<{ id: number, endpoint: string } | null> => {
     try {
         const response = await fetchWithProxies(url);
-        if (!response.ok) return null;
+
+        if (!response.ok) {
+            console.log(`[DEBUG] discoverPostIdAndEndpoint: Response not OK for ${url}, status: ${response.status}`);
+            return null;
+        }
+
+        const finalUrl = response.url || url;
+        if (finalUrl !== url) {
+            console.log(`[DEBUG] discoverPostIdAndEndpoint: URL redirected from ${url} to ${finalUrl}`);
+        }
+
         const html = await response.text();
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
+
         const apiLink = doc.querySelector('link[rel="https://api.w.org/"]');
         if (apiLink) {
             const href = apiLink.getAttribute('href');
             if (href) {
                 const match = href.match(/\/(\d+)$/);
-                if (match) return { id: parseInt(match[1]), endpoint: href };
+                if (match) {
+                    console.log(`[DEBUG] discoverPostIdAndEndpoint: Found post ID ${match[1]} from HTML`);
+                    return { id: parseInt(match[1]), endpoint: href };
+                }
             }
         }
+
+        console.log(`[DEBUG] discoverPostIdAndEndpoint: Could not find API link in HTML for ${url}`);
         return null;
-    } catch (e) { return null; }
+    } catch (e) {
+        console.log(`[DEBUG] discoverPostIdAndEndpoint: Exception for ${url}:`, e);
+        return null;
+    }
 };
 
 const generateAndValidateReferences = async (keyword: string, metaDescription: string, serperApiKey: string) => {
@@ -444,6 +463,9 @@ export const publishItemToWordPress = async (
                  return { success: false, message: 'Refresh Failed: Missing content.' };
             }
 
+            console.log(`[DEBUG] Finding post for URL: ${itemToPublish.originalUrl}`);
+            console.log(`[DEBUG] Generated slug: ${generatedContent.slug}`);
+
             let discovered = null;
             if (itemToPublish.originalUrl) {
                 discovered = await discoverPostIdAndEndpoint(itemToPublish.originalUrl);
@@ -453,19 +475,50 @@ export const publishItemToWordPress = async (
                 existingPostId = discovered.id;
                 if (discovered.endpoint) apiUrl = discovered.endpoint;
                 else apiUrl = `${wpConfig.url.replace(/\/+$/, '')}/wp-json/wp/v2/posts/${existingPostId}`;
+                console.log(`[DEBUG] Found via HTML discovery: Post ID ${existingPostId}`);
             }
 
             if (!existingPostId && generatedContent.slug) {
-                 const searchRes = await fetcher(`${wpConfig.url}/wp-json/wp/v2/posts?slug=${generatedContent.slug}&_fields=id&status=any`, { method: 'GET', headers: { 'Authorization': `Basic ${btoa(`${wpConfig.username}:${currentWpPassword}`)}` } });
-                 const searchData = await searchRes.json();
-                 if (Array.isArray(searchData) && searchData.length > 0) {
-                     existingPostId = searchData[0].id;
-                     apiUrl = `${wpConfig.url.replace(/\/+$/, '')}/wp-json/wp/v2/posts/${existingPostId}`;
-                 }
+                console.log(`[DEBUG] Trying slug-based search: ${generatedContent.slug}`);
+                try {
+                    const searchRes = await fetcher(`${wpConfig.url}/wp-json/wp/v2/posts?slug=${generatedContent.slug}&_fields=id&status=any`, { method: 'GET', headers: { 'Authorization': `Basic ${btoa(`${wpConfig.username}:${currentWpPassword}`)}` } });
+                    const searchData = await searchRes.json();
+                    console.log(`[DEBUG] Slug search response:`, searchData);
+                    if (Array.isArray(searchData) && searchData.length > 0) {
+                        existingPostId = searchData[0].id;
+                        apiUrl = `${wpConfig.url.replace(/\/+$/, '')}/wp-json/wp/v2/posts/${existingPostId}`;
+                        console.log(`[DEBUG] Found via slug search: Post ID ${existingPostId}`);
+                    }
+                } catch (e) {
+                    console.log(`[DEBUG] Slug search failed:`, e);
+                }
+            }
+
+            if (!existingPostId && itemToPublish.originalUrl) {
+                console.log(`[DEBUG] Trying URL-based slug extraction fallback`);
+                try {
+                    const urlObj = new URL(itemToPublish.originalUrl);
+                    const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+                    const extractedSlug = pathParts[pathParts.length - 1];
+                    if (extractedSlug && extractedSlug !== generatedContent.slug) {
+                        console.log(`[DEBUG] Trying extracted slug: ${extractedSlug}`);
+                        const searchRes = await fetcher(`${wpConfig.url}/wp-json/wp/v2/posts?slug=${extractedSlug}&_fields=id&status=any`, { method: 'GET', headers: { 'Authorization': `Basic ${btoa(`${wpConfig.username}:${currentWpPassword}`)}` } });
+                        const searchData = await searchRes.json();
+                        console.log(`[DEBUG] Extracted slug search response:`, searchData);
+                        if (Array.isArray(searchData) && searchData.length > 0) {
+                            existingPostId = searchData[0].id;
+                            apiUrl = `${wpConfig.url.replace(/\/+$/, '')}/wp-json/wp/v2/posts/${existingPostId}`;
+                            console.log(`[DEBUG] Found via extracted slug: Post ID ${existingPostId}`);
+                        }
+                    }
+                } catch (e) {
+                    console.log(`[DEBUG] URL extraction fallback failed:`, e);
+                }
             }
 
             if (!existingPostId) {
-                 return { success: false, message: `Could not find original post.` };
+                console.log(`[DEBUG] ALL METHODS FAILED. Cannot find post for ${itemToPublish.originalUrl}`);
+                return { success: false, message: `Could not find original post. Tried: HTML discovery, slug search (${generatedContent.slug}), URL extraction` };
             }
         } else {
             if (generatedContent.slug) {
@@ -1001,8 +1054,23 @@ export class MaintenanceEngine {
             if (publishResult.success) {
                 this.logCallback(`✅ GOD MODE SUCCESS|${generatedContent.title}|${publishResult.link || page.id}`);
                 localStorage.setItem(`sota_last_proc_${page.id}`, Date.now().toString());
+                localStorage.removeItem(`sota_fail_count_${page.id}`);
             } else {
                 this.logCallback(`❌ Publish failed: ${publishResult.message}`);
+
+                const failKey = `sota_fail_count_${page.id}`;
+                const failCount = parseInt(localStorage.getItem(failKey) || '0') + 1;
+                localStorage.setItem(failKey, failCount.toString());
+
+                if (failCount >= 3) {
+                    this.logCallback(`⚠️ Page failed ${failCount} times. Marking as processed to avoid infinite loop. Will retry after 24 hours.`);
+                    const skipUntil = Date.now() + (24 * 60 * 60 * 1000);
+                    localStorage.setItem(`sota_last_proc_${page.id}`, skipUntil.toString());
+                } else {
+                    this.logCallback(`⚠️ Retry ${failCount}/3. Will try again on next cycle.`);
+                    const skipFor30Mins = Date.now() + (30 * 60 * 1000);
+                    localStorage.setItem(`sota_last_proc_${page.id}`, skipFor30Mins.toString());
+                }
             }
         } else {
             this.logCallback("✓ Content is already at GOD-LEVEL optimization. Skipping.");
