@@ -177,11 +177,27 @@ const fetchVerifiedReferences = async (keyword: string, serperApiKey: string, wp
         });
         const data = await response.json();
         const potentialLinks = data.organic || [];
-        
+
+        // QUALITY FILTER: Block spam domains
+        const BLOCKED_DOMAINS = [
+            'quora.com', 'scribd.com', 'dokumen.pub', 'asau.ru', 'slideserve.com',
+            'studylib.net', 'document.pub', 'pdfcoffee.com', 'slideshare.net',
+            'academia.edu', 'researchgate.net', 'coursehero.com', 'chegg.com',
+            'slideplayer.com', 'vdocuments.mx', 'fdocuments.in', 'kupdf.net',
+            'pdfslide.net', 'issuu.com', 'yumpu.com', 'calameo.com',
+            'polishedrx.com', 'medium.com', 'linkedin.com', 'pinterest.com'
+        ];
+
         const validationPromises = potentialLinks.slice(0, 12).map(async (link: any) => {
             try {
                 const linkDomain = new URL(link.link).hostname.replace('www.', '');
+
+                // Block spam domains
+                if (BLOCKED_DOMAINS.some(blocked => linkDomain.includes(blocked))) return null;
+
+                // Block same domain as WordPress site
                 if (wpUrl && linkDomain.includes(new URL(wpUrl).hostname.replace('www.', ''))) return null;
+
                 return { title: link.title, url: link.link, source: linkDomain };
             } catch (e) { return null; }
         });
@@ -1064,7 +1080,8 @@ export class MaintenanceEngine {
                     'studylib.net', 'document.pub', 'pdfcoffee.com', 'slideshare.net',
                     'academia.edu', 'researchgate.net', 'coursehero.com', 'chegg.com',
                     'slideplayer.com', 'vdocuments.mx', 'fdocuments.in', 'kupdf.net',
-                    'pdfslide.net', 'issuu.com', 'yumpu.com', 'calameo.com'
+                    'pdfslide.net', 'issuu.com', 'yumpu.com', 'calameo.com',
+                    'polishedrx.com', 'medium.com', 'linkedin.com', 'pinterest.com'
                 ];
 
                 for (const link of potentialLinks) {
@@ -1262,17 +1279,26 @@ export class MaintenanceEngine {
             const generatedContent = normalizeGeneratedContent({}, page.title);
             generatedContent.content = updatedHtml;
 
-            // CRITICAL FIX: Extract slug from URL if not already set
-            let finalSlug = page.slug;
-            if (!finalSlug && page.id) {
+            // CRITICAL FIX: ALWAYS extract slug from URL to avoid race conditions
+            let finalSlug = '';
+            if (page.id) {
                 try {
                     const urlObj = new URL(page.id);
                     const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
                     finalSlug = pathParts[pathParts.length - 1];
-                    this.logCallback(`📍 Extracted slug from URL: "${finalSlug}"`);
+                    this.logCallback(`📍 Extracted slug from URL: "${finalSlug}" (URL: ${page.id})`);
                 } catch (e) {
                     this.logCallback(`⚠️ Could not extract slug from URL: ${page.id}`);
+                    // Fallback to page.slug only if URL extraction fails
+                    finalSlug = page.slug || '';
                 }
+            } else {
+                finalSlug = page.slug || '';
+            }
+
+            if (!finalSlug) {
+                this.logCallback(`❌ CRITICAL: No slug available for page. Skipping publish.`);
+                return;
             }
 
             generatedContent.slug = finalSlug;
