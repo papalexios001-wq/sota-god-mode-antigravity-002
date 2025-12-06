@@ -1164,91 +1164,115 @@ export class MaintenanceEngine {
             }
         }
 
-        // 6. GOD MODE ULTRA INSTINCT (The Final Layer)
-        this.logCallback(`⚡ ENGAGING ULTRA INSTINCT: Transmuting content DNA...`);
+        // 6. GOD MODE: STRUCTURAL GUARDIAN ACTIVATED
+        this.logCallback(`🛡️ ENGAGING STRUCTURAL GUARDIAN: Cleaning noise & preserving format...`);
 
-        // Filter for "Meaty" content nodes (paragraphs and list items that actually say something)
-        const contentNodes = Array.from(body.querySelectorAll('p, li, h2, h3')).filter(node => {
-            // Skip protected/special elements
+        // Select ALL content-relevant nodes, but explicitly skip known garbage containers
+        const contentNodes = Array.from(body.querySelectorAll('p, li, h2, h3, h4, blockquote')).filter(node => {
+            // 1. AGGRESSIVE NOISE FILTERING BEFORE AI
+            const text = node.textContent?.toLowerCase() || '';
+
+            // Kill list patterns - remove immediately
+            const garbagePatterns = [
+                'subscribe to', 'your email', 'enter your email', 'email address',
+                'privacy notice', 'privacy policy', 'cookie policy', 'i agree to',
+                'updates on the latest', 'sign up for', 'newsletter',
+                'follow us on', 'share this', 'tweet this', 'pin it',
+                'leave a comment', 'comment below', 'your name',
+                'previous post', 'next post', 'back to top',
+                'search for:', 'categories:', 'tags:', 'posted in',
+                'about us', 'contact us', 'home page'
+            ];
+
+            const isGarbage = garbagePatterns.some(pattern => text.includes(pattern));
+
+            if (isGarbage) {
+                node.remove(); // Kill it immediately from the DOM
+                this.logCallback(`🗑️ PRE-FILTER: Removed UI noise - "${text.substring(0, 50)}..."`);
+                return false;
+            }
+
+            // Skip protected elements
             if (node.closest('figure, .wp-block-image, .wp-block-embed, .key-takeaways-box, .faq-section, .sota-references-section')) return false;
+
+            // Skip nodes with media
             if (node.querySelector('img, iframe, video, svg')) return false;
 
-            // Skip navigation/UI noise
-            if ((node.textContent?.trim().length || 0) < 40) return false;
+            // Skip empty or very short nodes
+            if (text.trim().length < 5) return false;
 
             return true;
         });
 
-        // We process larger chunks to give the AI more "Context Window" to work with.
-        // This allows it to move flow between paragraphs better.
-        const INSTINCT_BATCH_SIZE = 8;
-        let transmutationCount = 0;
+        const GUARDIAN_BATCH_SIZE = 6;
+        let guardianFixes = 0;
         let textChangesMade = 0;
 
-        // Process the most critical parts of the article (Top 40 nodes) to save tokens but maximize impact
-        const nodesToTransmute = contentNodes.slice(0, 40);
+        // Process up to 50 nodes (covers most of a standard article)
+        const nodesToProcess = contentNodes.slice(0, 50);
 
-        for (let i = 0; i < nodesToTransmute.length; i += INSTINCT_BATCH_SIZE) {
-            const batch = nodesToTransmute.slice(i, i + INSTINCT_BATCH_SIZE);
+        for (let i = 0; i < nodesToProcess.length; i += GUARDIAN_BATCH_SIZE) {
+            const batch = nodesToProcess.slice(i, i + GUARDIAN_BATCH_SIZE);
 
-            // Create a virtual container to hold the batch
+            // Clone nodes to a wrapper to preserve structure
             const batchWrapper = doc.createElement('div');
             batch.forEach(node => batchWrapper.appendChild(node.cloneNode(true)));
-
             const batchHtml = batchWrapper.innerHTML;
 
             try {
-                this.logCallback(`⚡ TRANSMUTING: Sector ${Math.floor(i/INSTINCT_BATCH_SIZE) + 1}...`);
+                this.logCallback(`🛡️ REFINING: Batch ${Math.floor(i/GUARDIAN_BATCH_SIZE) + 1} (Preserving Structure)...`);
 
-                const godModeHtml = await memoizedCallAI(
+                const refinedHtml = await memoizedCallAI(
                     apiClients, selectedModel, geoTargeting, openrouterModels, selectedGroqModel,
-                    'god_mode_ultra_instinct',
+                    'god_mode_structural_guardian',
                     [batchHtml, semanticKeywords, page.title],
                     'html'
                 );
 
-                const cleanGodHtml = surgicalSanitizer(godModeHtml);
+                const cleanHtml = surgicalSanitizer(refinedHtml);
 
-                // Sanity Check: Ensure we didn't lose too much content (Anti-Hallucination)
-                if (cleanGodHtml && cleanGodHtml.length > batchHtml.length * 0.6) {
+                // Validation: Check if we got back valid HTML
+                if (cleanHtml && cleanHtml.length > 10) {
                     const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = cleanGodHtml;
+                    tempDiv.innerHTML = cleanHtml;
 
-                    // Re-injection Strategy:
-                    // The AI might merge paragraphs or split them. We replace the ENTIRE batch range.
-                    if (tempDiv.children.length > 0) {
-                         const firstNode = batch[0];
-                         const parent = firstNode.parentNode;
-
+                    // If the AI returned an empty string (because it found garbage), we remove the original nodes
+                    if (tempDiv.textContent?.trim().length === 0) {
+                        batch.forEach(node => node.remove());
+                        this.logCallback(`🗑️ AI-DETECTED: Removed garbage batch`);
+                    }
+                    // Otherwise, we intelligently swap
+                    else if (tempDiv.children.length > 0) {
+                         const parent = batch[0].parentNode;
                          if (parent) {
-                             // Insert new transmuted nodes
+                             // Insert refined nodes before first old node
                              Array.from(tempDiv.childNodes).forEach(newChild => {
-                                 parent.insertBefore(newChild, firstNode);
+                                 parent.insertBefore(newChild, batch[0]);
                              });
 
-                             // Delete old weak nodes
+                             // Remove old nodes
                              batch.forEach(oldNode => {
                                  if (oldNode.parentNode === parent) {
                                      parent.removeChild(oldNode);
                                  }
                              });
 
-                             transmutationCount++;
+                             guardianFixes++;
                              textChangesMade += batch.length;
                          }
                     }
                 }
             } catch (e: any) {
-                // If God Mode fails, we fail gracefully and keep original content
-                this.logCallback(`⚠️ Ultra Instinct disruption: ${e.message}`);
+                this.logCallback(`⚠️ Guardian Glitch: ${e.message}`);
             }
+
             // Cooldown to respect API limits
             await delay(500);
         }
 
-        if (transmutationCount > 0) {
+        if (guardianFixes > 0) {
              structuralFixesMade++;
-             this.logCallback(`✅ ULTRA INSTINCT COMPLETE: Transmuted ${transmutationCount} content sectors.`);
+             this.logCallback(`✅ STRUCTURE SECURED: Refined ${guardianFixes} blocks while keeping formatting.`);
         }
 
         // 7. ULTRA AGGRESSIVE REFERENCE CHECK & ADDITION
@@ -1330,26 +1354,46 @@ export class MaintenanceEngine {
                         checkedCount++;
                         this.logCallback(`🔗 CHECKING [${checkedCount}]: ${linkDomain}`);
 
-                        try {
-                            const checkResponse = await fetch(link.link, {
-                                method: 'HEAD',
-                                signal: AbortSignal.timeout(8000),
-                                redirect: 'follow'
-                            });
+                        // ULTRA STRICT VALIDATION: Only 200 status codes, with retry logic
+                        let validationPassed = false;
+                        let attempts = 0;
+                        const maxAttempts = 2;
 
-                            if (checkResponse.ok && checkResponse.status === 200) {
-                                validatedLinks.push({
-                                    title: link.title || linkDomain,
-                                    url: link.link,
-                                    source: linkDomain
+                        while (!validationPassed && attempts < maxAttempts) {
+                            attempts++;
+                            try {
+                                this.logCallback(`🔍 VALIDATING [Attempt ${attempts}/${maxAttempts}]: ${linkDomain}...`);
+
+                                const checkResponse = await fetch(link.link, {
+                                    method: 'HEAD',
+                                    signal: AbortSignal.timeout(8000),
+                                    redirect: 'follow',
+                                    headers: {
+                                        'User-Agent': 'Mozilla/5.0 (compatible; SOTA-Bot/1.0; +reference-validator)'
+                                    }
                                 });
-                                this.logCallback(`✅ VALID [${validatedLinks.length}/10]: ${linkDomain}`);
-                            } else {
-                                this.logCallback(`❌ FAILED [${checkResponse.status}]: ${linkDomain}`);
+
+                                // STRICT: Only accept 200 status (not 201, not 202, not 301, ONLY 200)
+                                if (checkResponse.status === 200) {
+                                    validatedLinks.push({
+                                        title: link.title || linkDomain,
+                                        url: link.link,
+                                        source: linkDomain
+                                    });
+                                    this.logCallback(`✅ VALID (200 OK) [${validatedLinks.length}/10]: ${linkDomain}`);
+                                    validationPassed = true;
+                                } else {
+                                    this.logCallback(`❌ REJECTED [Status: ${checkResponse.status}]: ${linkDomain} - Only 200 accepted`);
+                                    break; // Don't retry for non-200 responses
+                                }
+                            } catch (fetchError: any) {
+                                if (attempts >= maxAttempts) {
+                                    this.logCallback(`❌ FAILED VALIDATION [${attempts}/${maxAttempts}]: ${linkDomain} - ${fetchError.message.substring(0, 40)}`);
+                                } else {
+                                    this.logCallback(`⚠️ RETRY [${attempts}/${maxAttempts}]: ${linkDomain} - ${fetchError.message.substring(0, 40)}`);
+                                    await delay(1000); // Wait before retry
+                                }
                             }
-                        } catch (fetchError: any) {
-                            this.logCallback(`❌ ERROR: ${linkDomain} - ${fetchError.message.substring(0, 50)}`);
-                            continue;
                         }
                     } catch (e) {
                         continue;
@@ -1394,8 +1438,8 @@ export class MaintenanceEngine {
             } catch (e: any) {
                 this.logCallback(`❌ ERROR: Reference generation failed: ${e.message}`);
             }
-        } else if (hasReferences) {
-            this.logCallback(`✅ REFERENCES: Already present - skipping`);
+        } else if (hasQualityReferences) {
+            this.logCallback(`✅ REFERENCES: Already present with ${sotaReferenceSection?.querySelectorAll('a[href^="http"]').length || 0} verified links - skipping`);
         } else {
             this.logCallback(`❌ CRITICAL: Serper API key NOT configured - CANNOT add references!`);
             this.logCallback(`❌ Please add your Serper API key in settings to enable reference generation`);
