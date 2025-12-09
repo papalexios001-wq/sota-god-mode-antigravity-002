@@ -137,24 +137,32 @@ export async function generateAndValidateReferences(
 
         const systemPrompt = `You are a Reference Validation Specialist.
 
-Generate high-quality, verifiable references.
+Generate high-quality, verifiable, TOPIC-SPECIFIC references.
 
-**REFERENCE QUALITY:**
-1. Authoritative sources (.edu, .gov, major publications)
-2. Recent (${currentYear} preferred)
-3. Directly relevant
-4. REAL URLs only
+**CRITICAL REQUIREMENTS:**
+1. References MUST be DIRECTLY RELEVANT to the specific topic (not generic)
+2. Each reference must be from an AUTHORITATIVE source (.edu, .gov, major publications, research institutions)
+3. References must be RECENT (${currentYear} preferred)
+4. References must have REAL, VERIFIABLE URLs
+5. Each reference should be UNIQUE to this topic (would NOT fit a different topic)
+
+**WHAT TO AVOID:**
+❌ Generic content marketing/SEO/blogging advice
+❌ References that could apply to ANY topic
+❌ Low-authority blog posts
+❌ Made-up or hallucinated URLs
+❌ Outdated sources (pre-2023)
 
 **OUTPUT FORMAT (JSON only):**
 {
   "references": [
     {
-      "title": "Citation title",
+      "title": "Specific citation title (must be topic-specific)",
       "author": "Author/Organization",
-      "url": "https://real-url.com",
-      "source": "Publication name",
+      "url": "https://real-verifiable-url.com",
+      "source": "Publication name (.edu, .gov, major publication)",
       "year": ${currentYear},
-      "relevance": "Why relevant"
+      "relevance": "Why this is directly relevant to THIS SPECIFIC topic"
     }
   ]
 }`;
@@ -163,8 +171,27 @@ Generate high-quality, verifiable references.
 
 **CONTENT SUMMARY:** ${contentSummary.substring(0, 500)}
 
-Generate 8-12 authoritative references from ${currentYear}.
-Return ONLY valid JSON.`;
+**TASK:**
+Generate 8-12 authoritative, TOPIC-SPECIFIC references for the topic "${keyword}".
+
+**CRITICAL RULES:**
+1. Each reference MUST be specifically about "${keyword}" (not generic content/SEO advice)
+2. Use ONLY authoritative sources (.edu, .gov, research institutions, major publications)
+3. References must be from ${currentYear} or ${currentYear - 1}
+4. Each reference should be UNIQUE to this topic
+5. Provide REAL, VERIFIABLE URLs only
+
+**BAD EXAMPLES (DO NOT USE):**
+- "Content Marketing Institute - How to Write Better Content" (too generic)
+- "HubSpot Blog - SEO Best Practices" (not specific to topic)
+- Generic marketing blogs or low-authority sources
+
+**GOOD EXAMPLES (FORMAT TO FOLLOW):**
+- Topic-specific academic papers, research studies, government reports
+- Industry-specific publications and authoritative sources
+- Expert organizations directly related to the topic
+
+Return ONLY valid JSON with 8-12 references.`;
 
         let responseText = '';
 

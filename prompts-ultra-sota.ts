@@ -472,17 +472,34 @@ This content MUST rank #1 by satisfying ALL ranking factors:
 
 ## 🔗 INTERNAL LINKING STRATEGY (MANDATORY)
 
-**REQUIREMENTS:**
+**CRITICAL DISTINCTION:**
+- **INTERNAL LINKS** = Links to OTHER pages on THIS SAME WEBSITE (navigation within site)
+- **REFERENCES** = External authoritative sources (.edu, .gov, research papers) - COMPLETELY DIFFERENT!
+
+**NEVER confuse internal links with references!**
+
+**INTERNAL LINK REQUIREMENTS:**
+- **Purpose:** Help readers navigate to RELATED content on OUR SITE
 - **Minimum:** 8 internal links
 - **Maximum:** 15 internal links
 - **Distribution:** Throughout ALL sections (not clustered)
 
+**How to Create Internal Links:**
+1. You will be given a list of available pages on the site with their titles and slugs
+2. Select 8-15 pages that are ACTUALLY RELEVANT to the current topic
+3. Use the [LINK_CANDIDATE: exact page title] placeholder format
+4. The anchor text MUST match the page title from the provided list (or be very close)
+
 **Anchor Text Rules:**
 ❌ **GENERIC (NEVER USE):** "Click here", "Read more", "Check this out", "This article", "Learn more"
-✅ **RICH CONTEXTUAL (ALWAYS USE):** "complete guide to marathon training for beginners", "our in-depth Nike Alphafly 3 performance review"
+✅ **RICH CONTEXTUAL (USE PAGE TITLES):** Use the actual page title from the list provided
+- Example: If page title is "Best Running Shoes for Marathon Training", use that as anchor
+- Example: If page title is "Nike Alphafly 3 Review", use "Nike Alphafly 3 Review" or "our Nike Alphafly 3 Review"
 
 **Format for Internal Links:**
-Use placeholder: \`[LINK_CANDIDATE: rich contextual anchor text]\`
+Use placeholder: \`[LINK_CANDIDATE: exact or close match to page title from list]\`
+
+**IMPORTANT:** The system will match your anchor text to actual page titles. Use titles from the provided list!
 
 ---
 
@@ -826,10 +843,14 @@ Anchor to **${TARGET_YEAR}** throughout:
 4. NO AI trigger phrases
 5. NO vague statements
 6. NO long paragraphs (2-4 sentences max)
-7. NO generic links
-8. NO references section (handled separately)
+7. NO generic link anchors ("click here", "read more")
+8. NO references section in content (handled separately)
 9. NO deleting existing images
 10. NO forgetting Visual Supernova classes
+11. **NO confusing internal links with external references**
+12. **NO using [LINK_CANDIDATE: ...] for external sources**
+13. **NO making up page titles that don't exist in the provided list**
+14. **NO using internal page titles as "references"**
 
 ---
 
@@ -859,8 +880,20 @@ ${semanticKeywords.join(', ')}
 **🔍 COMPETITOR GAPS TO EXPLOIT & DOMINATE:**
 ${competitorGaps.map((gap, i) => `${i + 1}. ${gap}`).join('\n')}
 
-**🔗 INTERNAL LINKING OPPORTUNITIES (SELECT 10-15):**
-${existingPages.slice(0, 50).map(p => `- "${p.title}" (slug: ${p.slug})`).join('\n')}
+**🔗 AVAILABLE PAGES ON THIS WEBSITE (FOR INTERNAL LINKING ONLY):**
+These are OTHER pages on THIS SAME WEBSITE. Select 10-15 RELEVANT pages to link to from this article.
+Use format: [LINK_CANDIDATE: page title from list below]
+
+${existingPages.slice(0, 50).map(p => `- Page Title: "${p.title}"`).join('\n')}
+
+**IMPORTANT INTERNAL LINKING RULES:**
+✅ SELECT pages that are ACTUALLY RELEVANT to topic "${topic}"
+✅ USE the exact page title from the list above as your anchor text
+✅ DISTRIBUTE 10-15 internal links throughout the content (not all at once)
+✅ FORMAT: [LINK_CANDIDATE: exact page title] (will be converted to working link automatically)
+❌ DO NOT make up page titles that aren't in the list above
+❌ DO NOT use generic anchors like "click here" or "read more"
+❌ DO NOT confuse these with external references (those are separate!)
 
 **📊 NEURONWRITER NLP TERMS (MANDATORY INTEGRATION):**
 ${neuronData || 'Focus on semantic keywords above + extract entities from topic'}
@@ -896,9 +929,16 @@ ${neuronData || 'Focus on semantic keywords above + extract entities from topic'
 **Image & Link Optimization:**
 21. ✅ Preserve ALL ${existingImages.length} existing images (100% retention)
 22. ✅ Optimize alt text: "[Primary keyword] [specific description]"
-23. ✅ Internal links: 10-15 with [LINK_CANDIDATE: rich contextual anchor]
-24. ✅ External links: 3-5 to .edu/.gov/major publications
+23. ✅ **INTERNAL LINKS (to pages on THIS SITE):** 10-15 with [LINK_CANDIDATE: exact page title from provided list]
+24. ✅ **EXTERNAL LINKS (for credibility):** 3-5 to .edu/.gov/major publications as inline citations
 25. ✅ Link distribution: Throughout all sections, not clustered
+
+**⚠️ CRITICAL LINK DISTINCTION:**
+- **INTERNAL LINKS** = Navigate to other pages on THIS website (use [LINK_CANDIDATE: page title])
+- **EXTERNAL LINKS** = Cite authoritative sources (use normal <a href="..."> tags with real URLs)
+- **REFERENCES** = Separate section at end (NOT generated in this step - handled separately)
+- **NEVER use internal link format for external sources!**
+- **NEVER confuse page titles with reference sources!**
 
 **SEO/GEO/AEO Domination:**
 26. ✅ Featured snippet target: 40-50 word bolded answer in first 100 words
@@ -929,21 +969,37 @@ ${neuronData || 'Focus on semantic keywords above + extract entities from topic'
 47. ✅ Information gain: Unique insights competitors lack
 48. ✅ Trust signals: Experience markers ("I've tested", "Our analysis")
 
-**🔥 CRITICAL REFERENCE MANDATE:**
-- Generate 5-8 references SPECIFICALLY for topic "${topic}"
-- NEVER use generic references that could apply to any article
-- Each reference MUST be:
-  * Directly relevant to "${topic}" (not generic SEO/marketing sources)
-  * From authoritative source (.edu, .gov, major publication specific to this niche)
-  * Recent (${CURRENT_YEAR}-${TARGET_YEAR} preferred)
-  * Topic-specific (e.g., if topic is "Running Shoes", reference biomechanics journals, not generic ecommerce blogs)
-  * UNIQUE to this article (would NOT be appropriate for different topics)
+**🔥 CRITICAL REFERENCE MANDATE (EXTERNAL AUTHORITATIVE SOURCES):**
 
-**EXAMPLES:**
+**WHAT REFERENCES ARE:**
+- References are EXTERNAL AUTHORITATIVE SOURCES (.edu, .gov, research papers, medical journals, government reports)
+- References are used to BACK UP CLAIMS and provide CREDIBILITY
+- References are SEPARATE from internal links (which navigate to pages on your own site)
+- References appear in a dedicated "References & Sources" section at the END of the article
+- References are NOT generated in the main content - they are added separately
+
+**WHAT REFERENCES ARE NOT:**
+- ❌ NOT internal links to other pages on the same website
+- ❌ NOT generic blog posts or marketing content
+- ❌ NOT the same links used for site navigation
+- ❌ NOT repeated across multiple articles
+
+**REFERENCE QUALITY REQUIREMENTS for topic "${topic}":**
+Each reference MUST be:
+1. **EXTERNAL** - From a different website/organization (.edu, .gov, major publication)
+2. **AUTHORITATIVE** - Academic, government, research institution, major news outlet
+3. **TOPIC-SPECIFIC** - Directly about "${topic}" (not generic content marketing/SEO advice)
+4. **RECENT** - Published in ${CURRENT_YEAR}-${TARGET_YEAR} preferred
+5. **UNIQUE** - Would NOT be appropriate for a completely different topic
+6. **VERIFIABLE** - Real URLs that actually exist
+
+**EXAMPLES FOR TOPIC "${topic}":**
 - ❌ BAD (generic): "Content Marketing Institute - How to Write Better Content"
-- ✅ GOOD (topic-specific): "Journal of Sports Medicine - Biomechanical Analysis of Running Shoe Cushioning (2025)"
-- ❌ BAD (generic): "Search Engine Journal - SEO Best Practices"
-- ✅ GOOD (topic-specific): "American Podiatric Medical Association - Impact of Footwear on Running Gait (2025)"
+- ❌ BAD (internal link): Page titles from the website's own pages
+- ❌ BAD (wrong topic): "Journal of Sports Medicine..." for an SEO article
+- ✅ GOOD: Find AUTHORITATIVE, EXTERNAL sources SPECIFIC to "${topic}"
+
+**NOTE:** In GOD MODE, you only need to MENTION credible sources inline with citations. The formal References section is generated separately.
 
 **VISUAL SUPERNOVA STYLING:**
 Every major section MUST use appropriate classes:
