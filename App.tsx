@@ -12,7 +12,6 @@ import {
     AppFooter, AnalysisModal, BulkPublishModal, ReviewModal, SidebarNav, SkeletonLoader, ApiKeyInput, CheckIcon, XIcon, WordPressEndpointInstructions
 } from './components';
 import { LandingPage } from './LandingPage';
-import { GodModeURLInput } from './src/GodModeURLInput';
 import {
     SitemapPage, ContentItem, GeneratedContent, SiteInfo, ExpandedGeoTargeting, ApiClients, WpConfig,
     NeuronConfig, GapAnalysisSuggestion, GenerationContext
