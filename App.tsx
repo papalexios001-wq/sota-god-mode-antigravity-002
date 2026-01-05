@@ -201,8 +201,7 @@ const App = () => {
             const context: GenerationContext = { dispatch, existingPages, siteInfo, wpConfig, geoTargeting, serperApiKey: apiKeys.serperApiKey, apiKeyStatus, apiClients, selectedModel, openrouterModels, selectedGroqModel, neuronConfig, excludedUrls, excludedCategories };
             maintenanceEngine.start(context);
         } else { maintenanceEngine.stop(); }
-        if (820
-            existingPages.length > 0) {
+        if (            existingPages.length > 0) {
              const context: GenerationContext = { dispatch, existingPages, siteInfo, wpConfig, geoTargeting, serperApiKey: apiKeys.serperApiKey, apiKeyStatus, apiClients, selectedModel, openrouterModels, selectedGroqModel, neuronConfig, excludedUrls, excludedCategories };
             maintenanceEngine.updateContext(context);
         }
