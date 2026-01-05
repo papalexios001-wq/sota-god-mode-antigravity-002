@@ -1,1 +1,10 @@
-���
+# Wrangler configuration for Cloudflare Pages
+name = "wp-sota-god-mode"
+type = "javascript"
+acccount_id = ""
+workers_dev = true
+route = ""
+zone_id = ""
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
