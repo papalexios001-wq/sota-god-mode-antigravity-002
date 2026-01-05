@@ -201,7 +201,8 @@ const App = () => {
             const context: GenerationContext = { dispatch, existingPages, siteInfo, wpConfig, geoTargeting, serperApiKey: apiKeys.serperApiKey, apiKeyStatus, apiClients, selectedModel, openrouterModels, selectedGroqModel, neuronConfig, excludedUrls, excludedCategories };
             maintenanceEngine.start(context);
         } else { maintenanceEngine.stop(); }
-        if (isGodMode && existingPages.length > 0) {
+        if (820
+            existingPages.length > 0) {
              const context: GenerationContext = { dispatch, existingPages, siteInfo, wpConfig, geoTargeting, serperApiKey: apiKeys.serperApiKey, apiKeyStatus, apiClients, selectedModel, openrouterModels, selectedGroqModel, neuronConfig, excludedUrls, excludedCategories };
             maintenanceEngine.updateContext(context);
         }
@@ -583,7 +584,8 @@ const App = () => {
                                 <div className="tabs" role="tablist">
                                     <button className={`tab-btn ${contentMode === 'bulk' ? 'active' : ''}`} onClick={() => setContentMode('bulk')} role="tab">Bulk Content Planner</button>
                                     <button className={`tab-btn ${contentMode === 'single' ? 'active' : ''}`} onClick={() => setContentMode('single')} role="tab">Single Article</button>
-                                    <button className={`tab-btn ${contentMode === 'gapAnalysis' ? 'active' : ''}`} onClick={() => setContentMode('gapAnalysis')} role="tab">Gap Analysis (God Mode)</button>
+                                    <button className={`tab-btn $804
+                                    ? 'active' : ''}`} onClick={() => setContentMode('gapAnalysis')} role="tab">Gap Analysis (God Mode)</button>
                                     <button className={`tab-btn ${contentMode === 'refresh' ? 'active' : ''}`} onClick={() => setContentMode('refresh')} role="tab">Quick Refresh & Validate</button>
                                     <button className={`tab-btn ${contentMode === 'hub' ? 'active' : ''}`} onClick={() => setContentMode('hub')} role="tab">Content Hub</button>
                                     <button className={`tab-btn ${contentMode === 'imageGenerator' ? 'active' : ''}`} onClick={() => setContentMode('imageGenerator')} role="tab">Image Generator</button>
@@ -601,7 +603,9 @@ const App = () => {
                                 </div>
                             )}
 
-                            {contentMode === 'gapAnalysis' && (
+                            805
+                            && (623
+                            
                                 <div className="tab-panel">
                                     <h3 style={{background: 'linear-gradient(to right, #3b82f6, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.8rem', marginBottom: '0.5rem'}}>Blue Ocean Gap Analysis</h3>
                                     
@@ -619,6 +623,11 @@ const App = () => {
                                                     Automatically scans your sitemap, prioritizes critical pages, and performs surgical SEO/Fact updates forever.
                                                 </p>
                                             </div>
+                                                        <div style={{background:'#020617',padding:'1.5rem',borderRadius:'12px',border:'1px solid #10B981',marginBottom:'2rem'}}>
+                                                                          <h3 style={{color:'#10B981',marginBottom:'1rem'}}>🎯 URLs to Optimize (God Mode)</h3>
+                                                                          <textarea style={{width:'100%',minHeight:'100px',background:'#1e293b',border:'1px solid #334155',borderRadius:'6px',padding:'0.75rem',color:'#E2E8F0',fontFamily:'monospace',fontSize:'0.85rem',resize:'vertical'}} placeholder='Enter URLs you want God Mode to optimize (one per line)\n\ne.g.\nhttps://example.com/page-1\nhttps://example.com/page-2' value={godModeURLInputs.join('\n')} onChange={(e) => setGodModeURLInputs(e.target.value.split('\n').map(url => url.trim()).filter(Boolean))} />
+                                                                          <p style={{fontSize:'0.8rem',color:'#94a3b8',marginTop:'0.75rem'}}>iℹ️ God Mode will prioritize optimizing these specific URLs. Changes take effect immediately.</p>
+                                                                        </div>
                                             <label className="switch" style={{position: 'relative', display: 'inline-block', width: '60px', height: '34px'}}>
                                                 <input type="checkbox" checked={isGodMode} onChange={e => setIsGodMode(e.target.checked)} style={{opacity: 0, width: 0, height: 0}} />
                                                 <span className="slider round" style={{
