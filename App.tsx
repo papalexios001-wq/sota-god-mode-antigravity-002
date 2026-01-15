@@ -130,6 +130,8 @@ const App = () => {
     const [godModeLogs, setGodModeLogs] = useState<string[]>([]);
     const [excludedUrls, setExcludedUrls] = useState<string[]>(() => JSON.parse(localStorage.getItem('excludedUrls') || '[]'));
     const [excludedCategories, setExcludedCategories] = useState<string[]>(() => JSON.parse(localStorage.getItem('excludedCategories') || '[]'));
+      const [priorityUrls, setPriorityUrls] = useState<string[]>(() => JSON.parse(localStorage.getItem('priorityUrls') || '[]'));
+      const [priorityOnlyMode, setPriorityOnlyMode] = useState<boolean>(() => localStorage.getItem('priorityOnlyMode') === 'true');
     const [optimizedHistory, setOptimizedHistory] = useState<OptimizedLog[]>([]);
     const [wpDiagnostics, setWpDiagnostics] = useState<any>(null);
     const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
@@ -1235,9 +1237,7 @@ const App = () => {
                                 content: { 
                                     ...selectedItemForReview.generatedContent!, 
                                     title: updatedSeo.title, 
-                                    metaDescription: updatedSeo.metaDescription, 
-                                    slug: extractSlugFromUrl(updatedSeo.slug),
-                                    content: updatedContent 
+GOD MODE will skip🚫 Exclusion Controls                                    content: updatedContent 
                                 } 
                             } 
                         });
