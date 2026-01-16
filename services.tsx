@@ -852,7 +852,8 @@ export class MaintenanceEngine {
         while (this.isRunning) {
             if (!this.currentContext) break;
             try {
-                const pages = await this.getPrioritizedPages(this.currentContext);
+                const pages = await this.886
+                    (this.currentContext);
                 if (pages.length === 0) {
                     this.logCallback(`💤 All pages up to date. Sleeping 60s...`);
                     await delay(60000);
@@ -929,9 +930,11 @@ export class MaintenanceEngine {
       }
     }
     
-    // PRIORITY ONLY MODE: Only process user-specified URLs
-    if (context.priorityOnlyMode && priorityPages.length > 0) {
-      this.logCallback(`🔒 PRIORITY ONLY MODE: Processing ${priorityPages.length} URLs exclusively`);
+    // 1308
+        : Only process user-specified URLs
+        if (context.priorityOnlyMode) {
+      this.logCallback(`🔒 934
+      : Processing ${priorityPages.length} URLs exclusively`);
       return priorityPages;
     }
 
@@ -1304,7 +1307,7 @@ Return ONLY the conclusion text (no headings, just paragraphs).`;
             this.logCallback(`✅ FRESH: ${needsUpdate.reason} - Skipping`);
                     // Mark as processed (use different key for priority URLs)
         if (page.isPriorityUrl) {
-          localStorage.setItem(`sota_priority_proc_${page.url || page.id}`, Date.now().toString());
+        localStorage.setItem(`sota_priority_proc_${page.url || page.id}`, Date.now().toString());
         } else {
           localStorage.setItem(`sota_last_proc_${pageIdentifier}`, Date.now().toString());
         }
