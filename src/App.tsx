@@ -587,6 +587,7 @@ const App = () => {
                                                 </span>
                                             </label>
                                         </div>
+                                                      </div>
 
 
                             {/* SOTA PRIORITY URL QUEUE - Enterprise Grade URL Targeting */}
