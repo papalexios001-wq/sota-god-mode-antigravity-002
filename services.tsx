@@ -1315,15 +1315,6 @@ Return ONLY the conclusion text (no headings, just paragraphs).`;
 
         // 🔒 CRITICAL: Mark as processing IMMEDIATELY to prevent duplicate selection
               // Mark as processed (use different key for priority URLs)
-      ifix: Implement Priority URL Queue processing in MaintenanceEngine
-
-- Add priority URL queue logic to getPrioritizedPages
-- Priority URLs are processed FIRST before sitemap pages
-- Priority Only Mode restricts processing to queued URLs only
-- Use separate localStorage key for priority URL tracking
-- Priority URLs use full URL as ID for correct fetching
-- Update optimizeDOMSurgically to handle priority URL keys
-
 Fixes: Priority URL Queue now actually processes the URLsf (page.isPriorityUrl) {
         localStorage.setItem(`sota_priority_proc_${page.url || page.id}`, Date.now().toString());
       } else {
