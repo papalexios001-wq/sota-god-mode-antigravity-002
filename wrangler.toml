@@ -1,10 +1,12 @@
-# Wrangler configuration for Cloudflare Pages
-name = "wp-sota-god-mode"
-type = "javascript"
-acccount_id = ""
-workers_dev = true
-route = ""
-zone_id = ""
+name = "wp-content-optimizer-pro"
+compatibility_date = "2024-01-01"
 
-[env.production]
-vars = { ENVIRONMENT = "production" }
+[site]
+bucket = "./dist"
+
+[build]
+command = "npm install && npm run build"
+
+[build.environment]
+NODE_VERSION = "20"
+NPM_VERSION = "10"
