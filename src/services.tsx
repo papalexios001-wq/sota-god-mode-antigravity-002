@@ -24,6 +24,234 @@ import {
 import { generateFullSchema } from './schema-generator';
 import { fetchNeuronTerms } from './neuronwriter';
 
+
+// =============================================================================
+// SAFE AI CALL WRAPPER - Prevents 400 Errors
+// =============================================================================
+
+import { PROMPT_TEMPLATES, buildPrompt } from './prompts';
+
+/**
+ * Safely calls AI with proper error handling and content truncation
+ */
+export async function safeCallAI(
+  promptKey: string,
+  args: any[],
+  context: any,
+  outputFormat: 'text' | 'json' | 'html' = 'text',
+  maxRetries: number = 2
+): Promise<string> {
+  const { apiClients, selectedModel, logCallback } = context;
+  
+  // Validate API client
+  const client = apiClients?.[selectedModel as keyof typeof apiClients];
+  
+  if (!client) {
+    const errorMsg = `❌ API Client for '${selectedModel}' not initialized. Configure API key in Settings.`;
+    logCallback?.(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  // Build prompt with compatibility for both formats
+  let systemInstruction: string;
+  let userPrompt: string;
+
+  try {
+    const promptResult = buildPrompt(promptKey as keyof typeof PROMPT_TEMPLATES, args);
+    
+    // Handle both return formats
+    systemInstruction = promptResult.systemInstruction || promptResult.system || '';
+    userPrompt = promptResult.userPrompt || promptResult.user || '';
+  } catch (e: any) {
+    logCallback?.(`❌ Prompt build error: ${e.message}`);
+    throw e;
+  }
+
+  // CRITICAL: Truncate to prevent 400 errors
+  const MAX_SYSTEM = 6000;
+  const MAX_USER = 80000;
+  
+  if (systemInstruction.length > MAX_SYSTEM) {
+    systemInstruction = systemInstruction.substring(0, MAX_SYSTEM) + '\n[TRUNCATED]';
+  }
+  
+  if (userPrompt.length > MAX_USER) {
+    userPrompt = userPrompt.substring(0, MAX_USER) + '\n[TRUNCATED]';
+    logCallback?.(`⚠️ Content truncated to ${MAX_USER} chars`);
+  }
+
+  // Retry logic
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      logCallback?.(`🤖 AI Call (${promptKey}) - Attempt ${attempt}/${maxRetries}...`);
+      
+      const response = await callAIProvider(client, selectedModel, systemInstruction, userPrompt);
+      
+      if (!response || response.trim().length === 0) {
+        throw new Error('Empty response from AI');
+      }
+      
+      return response;
+      
+    } catch (error: any) {
+      lastError = error;
+      const errorMsg = error?.message || String(error);
+      
+      logCallback?.(`⚠️ AI Error (Attempt ${attempt}): ${errorMsg.substring(0, 200)}`);
+      
+      // Handle specific errors
+      if (errorMsg.includes('400') && (errorMsg.includes('context') || errorMsg.includes('too long'))) {
+        userPrompt = userPrompt.substring(0, Math.floor(userPrompt.length * 0.6));
+        logCallback?.(`📏 Truncating content further...`);
+      } else if (errorMsg.includes('429')) {
+        logCallback?.(`⏳ Rate limited. Waiting 5s...`);
+        await new Promise(r => setTimeout(r, 5000));
+      } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
+        throw new Error(`Auth error: Check your ${selectedModel} API key`);
+      }
+      
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
+    }
+  }
+  
+  throw lastError || new Error('AI call failed');
+}
+
+/**
+ * Calls the appropriate AI provider
+ */
+async function callAIProvider(
+  client: any,
+  model: string,
+  systemInstruction: string,
+  userPrompt: string
+): Promise<string> {
+  
+  const isAnthropic = model.includes('claude');
+  const isGemini = model.includes('gemini');
+  
+  try {
+    if (isAnthropic && client.messages) {
+      const response = await client.messages.create({
+        model: model,
+        max_tokens: 8192,
+        system: systemInstruction,
+        messages: [{ role: 'user', content: userPrompt }],
+      });
+      return response.content?.[0]?.text || '';
+      
+    } else if (isGemini && client.generateContent) {
+      const result = await client.generateContent({
+        contents: [{ role: 'user', parts: [{ text: `${systemInstruction}\n\n${userPrompt}` }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+      });
+      return result.response?.text() || '';
+      
+    } else if (client.chat?.completions) {
+      // OpenAI / OpenRouter / Groq format
+      const response = await client.chat.completions.create({
+        model: model,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 8192,
+      });
+      return response.choices?.[0]?.message?.content || '';
+      
+    } else {
+      throw new Error(`Unknown model format: ${model}`);
+    }
+  } catch (error: any) {
+    const errMsg = error?.message || error?.error?.message || String(error);
+    throw new Error(`Provider error: ${errMsg.substring(0, 300)}`);
+  }
+}
+
+// =============================================================================
+// CONTENT OPTIMIZATION FUNCTION
+// =============================================================================
+
+/**
+ * Main function to optimize content for a URL
+ */
+export async function optimizeContentForUrl(
+  url: string,
+  existingContent: string,
+  topic: string,
+  context: any,
+  existingPages: { title: string; slug: string }[]
+): Promise<{ content: string; success: boolean; message: string }> {
+  const { logCallback } = context;
+  
+  try {
+    logCallback?.(`🚀 Starting optimization for: ${url}`);
+    
+    // Validate
+    if (!existingContent || existingContent.trim().length < 100) {
+      return { content: '', success: false, message: 'Content too short (min 100 chars)' };
+    }
+    
+    // Truncate if needed
+    const MAX_CONTENT = 70000;
+    let content = existingContent;
+    if (content.length > MAX_CONTENT) {
+      logCallback?.(`⚠️ Truncating from ${content.length} to ${MAX_CONTENT}`);
+      content = content.substring(0, MAX_CONTENT);
+    }
+    
+    // Generate keywords
+    logCallback?.(`🔍 Generating semantic keywords...`);
+    let keywords: string[] = [];
+    try {
+      const kwResponse = await safeCallAI(
+        'semantic_keyword_generator',
+        [topic, topic, []],
+        context,
+        'json'
+      );
+      const parsed = JSON.parse(kwResponse);
+      keywords = Array.isArray(parsed) ? parsed : (parsed.keywords || [topic]);
+    } catch {
+      keywords = [topic];
+    }
+    
+    // Optimize content
+    logCallback?.(`⚡ Running God Mode optimization...`);
+    const optimized = await safeCallAI(
+      'god_mode_autonomous_agent',
+      [content, keywords, existingPages, topic],
+      context,
+      'html'
+    );
+    
+    if (!optimized || optimized.length < 500) {
+      return { content: existingContent, success: false, message: 'Optimization produced insufficient content' };
+    }
+    
+    logCallback?.(`✅ Complete! ${optimized.length} chars`);
+    
+    return {
+      content: optimized,
+      success: true,
+      message: `Successfully optimized (${optimized.length} chars)`
+    };
+    
+  } catch (error: any) {
+    logCallback?.(`❌ Failed: ${error.message}`);
+    return { content: existingContent, success: false, message: error.message };
+  }
+}
+
+
+
+
+
 // ==================== AI PROVIDER INTERFACE ====================
 
 type PromptKey = keyof typeof PROMPT_TEMPLATES;
