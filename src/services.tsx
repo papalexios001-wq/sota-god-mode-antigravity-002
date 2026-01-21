@@ -55,6 +55,63 @@ import {
 import { generateFullSchema } from './schema-generator';
 import { fetchNeuronTerms } from './neuronwriter';
 
+function extractJsonFromResponse(response) {
+  if (!response || typeof response !== 'string') {
+    throw new Error('Empty response');
+  }
+  
+  var trimmed = response.trim();
+  
+  if (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[') {
+    return trimmed;
+  }
+  
+  var match = trimmed.match(/```(?:json)?\s*\n?([\s\S]+?)\n?```/);
+  if (match && match.length > 1) {
+    var inside = match[1];
+    if (inside) {
+      var cleaned = inside.trim();
+      if (cleaned.charAt(0) === '{' || cleaned.charAt(0) === '[') {
+        return cleaned;
+      }
+    }
+  }
+  
+  var bracePos = trimmed.indexOf('{');
+  var bracketPos = trimmed.indexOf('[');
+  var startPos = -1;
+  var endChar = '}';
+  
+  if (bracePos !== -1 && (bracketPos === -1 || bracePos < bracketPos)) {
+    startPos = bracePos;
+    endChar = '}';
+  } else if (bracketPos !== -1) {
+    startPos = bracketPos;
+    endChar = ']';
+  }
+  
+  if (startPos !== -1) {
+    var endPos = trimmed.lastIndexOf(endChar);
+    if (endPos > startPos) {
+      return trimmed.substring(startPos, endPos + 1);
+    }
+  }
+  
+  throw new Error('Cannot extract JSON: ' + trimmed.substring(0, 80));
+}
+
+function safeJsonParse(response, context) {
+  try {
+    var jsonStr = extractJsonFromResponse(response);
+    return safeJsonParse(jsonStr);
+  } catch (err) {
+    console.error('JSON parse failed (' + context + '):', err);
+    console.error('Response preview:', response ? response.substring(0, 300) : 'null');
+    throw err;
+  }
+}
+
+
 // =============================================================================
 // SECTION 1: SOTA JSON EXTRACTION - ENTERPRISE GRADE ERROR HANDLING
 // =============================================================================
@@ -114,7 +171,7 @@ const extractJsonFromResponse = (response: string): string => {
       const extracted = trimmed.substring(startIndex, lastEnd + 1);
       // Validate it parses
       try {
-        JSON.parse(extracted);
+        safeJsonParse(extracted);
         return extracted;
       } catch {
         // Fall through to error handling
@@ -193,7 +250,7 @@ const extractJsonFromResponse = (response: string): string => {
 const safeJsonParse = <T = unknown>(response: string, context: string = 'Unknown'): T => {
   try {
     const jsonString = extractJsonFromResponse(response);
-    return JSON.parse(jsonString) as T;
+    return safeJsonParse(jsonString) as T;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error(`[safeJsonParse] Context: ${context}`);
