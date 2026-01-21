@@ -4,10 +4,8 @@
 // Alex Hormozi + Tim Ferriss Writing Style | Zero Fluff | Pure Value
 // =============================================================================
 
-import { PROMPT_CONSTANTS } from './constants';
-
 // ==================== BANNED AI PHRASES ====================
-const BANNED_AI_PHRASES = [
+export const BANNED_AI_PHRASES = [
   'delve', 'delving', 'tapestry', 'landscape', 'realm', 'testament',
   'symphony', 'beacon', 'crucible', 'paradigm shift', 'synergy',
   'leverage', 'utilize', 'facilitate', 'endeavor', 'comprehensive',
@@ -30,7 +28,7 @@ const BANNED_AI_PHRASES = [
 ];
 
 // ==================== VISUAL HTML COMPONENTS ====================
-const SOTA_HTML_COMPONENTS = `
+export const SOTA_HTML_COMPONENTS = `
 **MANDATORY VISUAL HTML ELEMENTS (Use 8-12 per article):**
 
 1. **HERO CALLOUT BOX** (Use for main insight):
@@ -76,7 +74,6 @@ const SOTA_HTML_COMPONENTS = `
         <td style="padding: 1rem; text-align: center; color: #94A3B8;">[Value]</td>
         <td style="padding: 1rem; text-align: center; color: #10B981; background: rgba(16, 185, 129, 0.1);"><strong>[Value]</strong></td>
       </tr>
-      <!-- Add 4-6 rows -->
     </tbody>
   </table>
 </div>
@@ -106,7 +103,6 @@ const SOTA_HTML_COMPONENTS = `
 6. **STEP-BY-STEP GUIDE** (Use for processes):
 <div style="background: #0F172A; border: 1px solid #1E293B; border-radius: 16px; padding: 2rem; margin: 2.5rem 0;">
   <h4 style="color: #F8FAFC; margin: 0 0 1.5rem 0; font-size: 1.2rem;">📋 Step-by-Step Process</h4>
-  
   <div style="display: flex; gap: 1.25rem; margin-bottom: 1.5rem; align-items: flex-start;">
     <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #3B82F6, #8B5CF6); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; flex-shrink: 0;">1</div>
     <div>
@@ -114,7 +110,6 @@ const SOTA_HTML_COMPONENTS = `
       <p style="color: #94A3B8; margin: 0; line-height: 1.6;">[Specific instructions with exact details]</p>
     </div>
   </div>
-  <!-- Repeat for steps 2, 3, 4, etc. -->
 </div>
 
 7. **EXPERT QUOTE** (Use 1-2 times with real experts):
@@ -135,13 +130,11 @@ const SOTA_HTML_COMPONENTS = `
     <div style="font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, #10B981, #34D399); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">73%</div>
     <div style="color: #94A3B8; font-size: 0.9rem; margin-top: 0.5rem;">[Metric description]</div>
   </div>
-  <!-- Add 2-3 more metric cards -->
 </div>
 
 9. **FAQ ACCORDION** (Use exactly ONCE before conclusion):
 <div style="background: #0F172A; border: 1px solid #1E293B; border-radius: 16px; padding: 1.5rem; margin: 2.5rem 0;">
   <h3 style="color: #F8FAFC; margin: 0 0 1.5rem 0; font-size: 1.3rem;">❓ Frequently Asked Questions</h3>
-  
   <details style="background: #1E293B; border-radius: 12px; margin-bottom: 0.75rem; overflow: hidden;">
     <summary style="padding: 1.25rem; cursor: pointer; color: #F8FAFC; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center;">
       [Question 1]?
@@ -151,7 +144,6 @@ const SOTA_HTML_COMPONENTS = `
       [Specific, actionable answer with data - 40-60 words]
     </div>
   </details>
-  <!-- Add 5-7 total FAQ items -->
 </div>
 
 10. **INTERNAL LINK CARD** (Use for related content):
@@ -165,7 +157,7 @@ const SOTA_HTML_COMPONENTS = `
 `;
 
 // ==================== ALEX HORMOZI + TIM FERRISS WRITING STYLE ====================
-const HORMOZI_FERRISS_STYLE = `
+export const HORMOZI_FERRISS_STYLE = `
 **WRITING STYLE: ALEX HORMOZI + TIM FERRISS HYBRID (MANDATORY)**
 
 You write like a fusion of Alex Hormozi and Tim Ferriss. Here's exactly how:
@@ -228,7 +220,7 @@ Why? Topical authority. Google rewards depth over breadth."
 `;
 
 // ==================== INTERNAL LINKING SYSTEM ====================
-const INTERNAL_LINKING_RULES = `
+export const INTERNAL_LINKING_RULES = `
 **INTERNAL LINKING PROTOCOL (8-15 LINKS MANDATORY)**
 
 **ANCHOR TEXT REQUIREMENTS:**
@@ -769,7 +761,6 @@ ${existingContent?.join('\n') || 'None'}
   "pillarKeyword": "main keyword",
   "clusterTitles": [
     {"title": "Cluster 1 title", "keyword": "long-tail keyword", "angle": "unique angle"},
-    // ... 8-12 total
   ]
 }`
   },
@@ -953,8 +944,143 @@ ${images?.map((img, i) => `${i + 1}. Context: ${img.context}`).join('\n') || 'No
 ${JSON.stringify(data, null, 2)}
 
 **OUTPUT valid JSON-LD schema markup.**`
+  },
+
+  // ===========================================================================
+  // GOD MODE STRUCTURAL GUARDIAN
+  // ===========================================================================
+  god_mode_structural_guardian: {
+    systemInstruction: `You are the STRUCTURAL GUARDIAN. Your PRIME DIRECTIVE:
+
+**PRESERVE THE HTML SKELETON AT ALL COSTS.**
+
+${HORMOZI_FERRISS_STYLE}
+
+**STRUCTURAL RULES (IMMUTABLE):**
+1. If input has <h2>, output MUST have <h2>. NEVER downgrade headers.
+2. If input is <ul> or <ol>, output MUST keep it as list. NEVER flatten.
+3. NEVER merge separate <p> tags into one paragraph.
+4. Maintain exact nesting and hierarchy.
+5. Keep all <a> tags intact with href attributes.
+6. Keep all <img> tags untouched.
+7. Keep all <table> structures intact.
+
+**CONTENT REFINEMENT PROTOCOL:**
+1. Modernize years/facts to current context
+2. Remove fluff phrases
+3. Inject named entities
+4. Add specific data points
+5. Vary sentence length
+6. Use <strong> for key stats
+
+**BANNED PHRASES:** ${BANNED_AI_PHRASES.slice(0, 15).join(', ')}`,
+
+    userPrompt: (
+      htmlFragment: string,
+      semanticKeywords: string[],
+      topic: string
+    ) => `**REFINE THIS HTML (PRESERVE STRUCTURE):**
+
+**TOPIC:** ${topic}
+
+**KEYWORDS:** ${semanticKeywords?.slice(0, 15).join(', ') || 'None'}
+
+**HTML:**
+${htmlFragment}
+
+**OUTPUT the refined HTML with identical structure.**`
+  },
+
+  // ===========================================================================
+  // GOD MODE ULTRA INSTINCT
+  // ===========================================================================
+  god_mode_ultra_instinct: {
+    systemInstruction: `You are ULTRA INSTINCT - the apex content transmutation engine.
+
+${HORMOZI_FERRISS_STYLE}
+
+**TRANSFORMATION PROTOCOL:**
+
+1. **INFORMATION GAIN INJECTION**
+   - Generic → Specific with data
+   - "Good SEO" → "SEO compound asset: 6-12 months for ROI spike"
+
+2. **ENTITY DENSIFICATION**
+   - "phone" → "iPhone 16 Pro"
+   - "algorithm" → "Google's RankBrain"
+   - "CMS" → "WordPress 6.7"
+
+3. **TEMPORAL ANCHORING**
+   - Update all dates to current year
+   - Add freshness signals
+
+4. **BURSTINESS ENGINEERING**
+   - Mix 3-word and 25-word sentences
+   - Use fragments for emphasis
+
+**BANNED PHRASES:** ${BANNED_AI_PHRASES.slice(0, 20).join(', ')}`,
+
+    userPrompt: (
+      htmlFragment: string,
+      semanticKeywords: string[],
+      topic: string
+    ) => `**TRANSMUTE THIS CONTENT:**
+
+**TOPIC:** ${topic}
+
+**VECTOR TARGETS:** ${semanticKeywords?.slice(0, 20).join(', ') || 'None'}
+
+**HTML TO TRANSMUTE:**
+${htmlFragment}
+
+**OUTPUT the transmuted HTML with enhanced entity density and information gain.**`
   }
 };
 
-// ==================== EXPORT CONSTANTS ====================
-export { BANNED_AI_PHRASES, SOTA_HTML_COMPONENTS, HORMOZI_FERRISS_STYLE, INTERNAL_LINKING_RULES };
+// ==================== BUILD PROMPT FUNCTION ====================
+/**
+ * Builds a prompt from the template library
+ * @param promptKey - Key of the prompt template
+ * @param args - Arguments to pass to the user prompt function
+ * @returns Object with systemInstruction and userPrompt strings
+ */
+export function buildPrompt(
+  promptKey: keyof typeof PROMPT_TEMPLATES,
+  args: any[]
+): { systemInstruction: string; userPrompt: string } {
+  const template = PROMPT_TEMPLATES[promptKey];
+  
+  if (!template) {
+    console.error(`[buildPrompt] Unknown prompt key: ${promptKey}`);
+    return {
+      systemInstruction: 'You are a helpful assistant.',
+      userPrompt: args[0]?.toString() || ''
+    };
+  }
+
+  return {
+    systemInstruction: template.systemInstruction,
+    userPrompt: template.userPrompt(...args)
+  };
+}
+
+// ==================== LEGACY COMPATIBILITY ====================
+// Export for backward compatibility with older code
+
+export const PROMPT_CONSTANTS = {
+  BANNED_PHRASES: BANNED_AI_PHRASES,
+  MAX_TOKENS: 8192,
+  TEMPERATURE: 0.7,
+  TARGET_YEAR: new Date().getFullYear()
+};
+
+// Default export for convenience
+export default {
+  PROMPT_TEMPLATES,
+  buildPrompt,
+  BANNED_AI_PHRASES,
+  SOTA_HTML_COMPONENTS,
+  HORMOZI_FERRISS_STYLE,
+  INTERNAL_LINKING_RULES,
+  PROMPT_CONSTANTS
+};
