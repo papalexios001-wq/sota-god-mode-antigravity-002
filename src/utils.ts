@@ -10,7 +10,7 @@ import { SortConfig } from './types';
 /**
  * Calls an async function with exponential backoff retry logic
  */
-export const callAiWithRetry = async <T>(
+export const callAiWithRetry = async <T,>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
   baseDelay: number = 1000
