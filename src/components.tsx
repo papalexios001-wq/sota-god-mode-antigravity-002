@@ -670,17 +670,341 @@ export const BulkPublishModal = ({ items, onClose, publishItem, wpConfig, wpPass
     ); 
 };
 
-export const AnalysisModal = ({ page, onClose, onPlanRewrite }: any) => {
+export const AnalysisModal = ({ page, onClose, onPlanRewrite }: { 
+  page: SitemapPage; 
+  onClose: () => void; 
+  onPlanRewrite: (page: SitemapPage) => void; 
+}) => {
+    if (!page) return null;
+
+    const analysis = page.analysis;
+    const hasAnalysis = analysis && (
+      analysis.critique || 
+      analysis.recommendations || 
+      analysis.keyIssues || 
+      analysis.opportunities ||
+      analysis.score !== undefined
+    );
+
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" style={{maxWidth: '800px', height: 'auto', maxHeight: '90vh', padding: '2rem'}}>
-                <h2 className="gradient-headline" style={{fontSize: '1.5rem'}}>Analysis</h2>
-                <p>{page.analysis?.critique}</p>
-                <button className="btn" onClick={() => { onPlanRewrite(page); onClose(); }}>Plan Rewrite</button>
+            <div 
+              className="modal-content" 
+              style={{
+                maxWidth: '900px', 
+                height: 'auto', 
+                maxHeight: '90vh', 
+                padding: '0',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-card)',
+                borderRadius: 'var(--radius-2xl)',
+                overflow: 'hidden'
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div style={{
+                  padding: '1.5rem 2rem',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-elevated)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                    <div>
+                        <h2 className="gradient-headline" style={{fontSize: '1.5rem', margin: 0}}>
+                          📊 Content Analysis
+                        </h2>
+                        <p style={{
+                          color: 'var(--text-tertiary)', 
+                          fontSize: '0.85rem', 
+                          margin: '0.5rem 0 0 0',
+                          maxWidth: '600px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {page.title || page.id}
+                        </p>
+                    </div>
+                    <button 
+                      onClick={onClose}
+                      style={{
+                        background: 'none',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-secondary)',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontSize: '1.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      ×
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div style={{
+                  padding: '2rem',
+                  overflowY: 'auto',
+                  maxHeight: 'calc(90vh - 180px)'
+                }}>
+                    {!hasAnalysis ? (
+                        <div style={{
+                          textAlign: 'center',
+                          padding: '3rem',
+                          color: 'var(--text-tertiary)'
+                        }}>
+                            <div style={{fontSize: '3rem', marginBottom: '1rem'}}>🔍</div>
+                            <h3 style={{color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>
+                              No Analysis Data Available
+                            </h3>
+                            <p style={{fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto'}}>
+                              This page hasn't been analyzed yet. Select it in the Content Hub 
+                              and click "Analyze Selected" to generate insights.
+                            </p>
+                        </div>
+                    ) : (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
+                            {/* Score Section */}
+                            {analysis.score !== undefined && (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '1.5rem',
+                                  padding: '1.5rem',
+                                  background: 'var(--bg-elevated)',
+                                  borderRadius: '16px',
+                                  border: '1px solid var(--border-subtle)'
+                                }}>
+                                    <div style={{
+                                      width: '80px',
+                                      height: '80px',
+                                      borderRadius: '50%',
+                                      background: analysis.score >= 70 
+                                        ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                                        : analysis.score >= 50
+                                        ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                                        : 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '1.75rem',
+                                      fontWeight: '800',
+                                      color: 'white',
+                                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                                    }}>
+                                      {analysis.score}
+                                    </div>
+                                    <div>
+                                        <div style={{
+                                          fontSize: '0.75rem',
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.1em',
+                                          color: 'var(--text-muted)',
+                                          marginBottom: '0.25rem'
+                                        }}>
+                                          Health Score
+                                        </div>
+                                        <div style={{
+                                          fontSize: '1.25rem',
+                                          fontWeight: '700',
+                                          color: 'var(--text-primary)'
+                                        }}>
+                                          {analysis.score >= 70 ? 'Good' : analysis.score >= 50 ? 'Needs Improvement' : 'Critical'}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Critique Section */}
+                            {analysis.critique && (
+                                <div style={{
+                                  padding: '1.5rem',
+                                  background: 'var(--bg-surface)',
+                                  borderRadius: '12px',
+                                  border: '1px solid var(--border-subtle)'
+                                }}>
+                                    <h4 style={{
+                                      color: 'var(--accent-primary)',
+                                      fontSize: '1rem',
+                                      marginBottom: '1rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.5rem'
+                                    }}>
+                                      📝 Analysis Summary
+                                    </h4>
+                                    <p style={{
+                                      color: 'var(--text-secondary)',
+                                      lineHeight: '1.7',
+                                      margin: 0
+                                    }}>
+                                      {analysis.critique}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Key Issues */}
+                            {analysis.keyIssues && analysis.keyIssues.length > 0 && (
+                                <div style={{
+                                  padding: '1.5rem',
+                                  background: 'rgba(239, 68, 68, 0.1)',
+                                  borderRadius: '12px',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)'
+                                }}>
+                                    <h4 style={{
+                                      color: '#EF4444',
+                                      fontSize: '1rem',
+                                      marginBottom: '1rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.5rem'
+                                    }}>
+                                      ⚠️ Key Issues Found
+                                    </h4>
+                                    <ul style={{
+                                      margin: 0,
+                                      paddingLeft: '1.25rem',
+                                      color: 'var(--text-secondary)'
+                                    }}>
+                                      {analysis.keyIssues.map((issue: string, idx: number) => (
+                                        <li key={idx} style={{marginBottom: '0.5rem', lineHeight: '1.6'}}>
+                                          {issue}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Recommendations */}
+                            {analysis.recommendations && analysis.recommendations.length > 0 && (
+                                <div style={{
+                                  padding: '1.5rem',
+                                  background: 'rgba(59, 130, 246, 0.1)',
+                                  borderRadius: '12px',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)'
+                                }}>
+                                    <h4 style={{
+                                      color: '#3B82F6',
+                                      fontSize: '1rem',
+                                      marginBottom: '1rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.5rem'
+                                    }}>
+                                      💡 Recommendations
+                                    </h4>
+                                    <ul style={{
+                                      margin: 0,
+                                      paddingLeft: '1.25rem',
+                                      color: 'var(--text-secondary)'
+                                    }}>
+                                      {analysis.recommendations.map((rec: string, idx: number) => (
+                                        <li key={idx} style={{marginBottom: '0.5rem', lineHeight: '1.6'}}>
+                                          {rec}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Opportunities */}
+                            {analysis.opportunities && analysis.opportunities.length > 0 && (
+                                <div style={{
+                                  padding: '1.5rem',
+                                  background: 'rgba(16, 185, 129, 0.1)',
+                                  borderRadius: '12px',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)'
+                                }}>
+                                    <h4 style={{
+                                      color: '#10B981',
+                                      fontSize: '1rem',
+                                      marginBottom: '1rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.5rem'
+                                    }}>
+                                      🚀 Growth Opportunities
+                                    </h4>
+                                    <ul style={{
+                                      margin: 0,
+                                      paddingLeft: '1.25rem',
+                                      color: 'var(--text-secondary)'
+                                    }}>
+                                      {analysis.opportunities.map((opp: string, idx: number) => (
+                                        <li key={idx} style={{marginBottom: '0.5rem', lineHeight: '1.6'}}>
+                                          {opp}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Raw Analysis Data (Debug) */}
+                            {!analysis.critique && !analysis.keyIssues && !analysis.recommendations && (
+                                <div style={{
+                                  padding: '1.5rem',
+                                  background: 'var(--bg-surface)',
+                                  borderRadius: '12px',
+                                  border: '1px solid var(--border-subtle)'
+                                }}>
+                                    <h4 style={{
+                                      color: 'var(--text-secondary)',
+                                      fontSize: '0.9rem',
+                                      marginBottom: '1rem'
+                                    }}>
+                                      Raw Analysis Data:
+                                    </h4>
+                                    <pre style={{
+                                      background: 'var(--bg-deep)',
+                                      padding: '1rem',
+                                      borderRadius: '8px',
+                                      overflow: 'auto',
+                                      fontSize: '0.75rem',
+                                      color: 'var(--text-tertiary)',
+                                      maxHeight: '200px'
+                                    }}>
+                                      {JSON.stringify(analysis, null, 2)}
+                                    </pre>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                  padding: '1.5rem 2rem',
+                  borderTop: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-elevated)',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '1rem'
+                }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      onClick={onClose}
+                    >
+                      Close
+                    </button>
+                    <button 
+                      className="btn" 
+                      onClick={() => { onPlanRewrite(page); onClose(); }}
+                      disabled={!hasAnalysis}
+                    >
+                      🔄 Plan Rewrite
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
+
 
 export const WordPressEndpointInstructions = ({ onClose }: { onClose: () => void }) => (
     <div className="modal-overlay" onClick={onClose}>
