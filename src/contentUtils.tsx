@@ -1,6 +1,6 @@
 // =============================================================================
-// SOTA WP CONTENT OPTIMIZER PRO - CONTENT UTILITIES v14.1
-// CRITICAL FIX: Natural Internal Links + Guaranteed References
+// SOTA WP CONTENT OPTIMIZER PRO - CONTENT UTILITIES v14.2
+// CRITICAL FIX: FORCE Natural Internal Links + GUARANTEED References
 // =============================================================================
 
 import { TARGET_MIN_WORDS, TARGET_MAX_WORDS, BLOCKED_REFERENCE_DOMAINS, BLOCKED_SPAM_DOMAINS } from './constants';
@@ -138,7 +138,6 @@ export const normalizeGeneratedContent = (html: string): string => {
 // ==================== MARKDOWN TABLE TO HTML CONVERTER ====================
 
 export const convertMarkdownTablesToHtml = (content: string): string => {
-  // Pattern to match markdown tables
   const tablePattern = /(?:^|\n)(\|[^\n]+\|\n)(\|[-:|\s]+\|\n)((?:\|[^\n]+\|\n?)+)/gm;
   
   let result = content;
@@ -149,13 +148,11 @@ export const convertMarkdownTablesToHtml = (content: string): string => {
     const headerRow = match[1].trim();
     const bodyRows = match[3].trim();
     
-    // Parse header cells
     const headers = headerRow
       .split('|')
       .map(cell => cell.trim())
       .filter(cell => cell.length > 0);
     
-    // Parse body rows
     const rows = bodyRows
       .split('\n')
       .filter(row => row.includes('|'))
@@ -166,7 +163,6 @@ export const convertMarkdownTablesToHtml = (content: string): string => {
           .filter(cell => cell.length > 0 || row.split('|').length > 2)
       );
     
-    // Build HTML table with beautiful styling
     const htmlTable = `
 <div style="margin: 2.5rem 0; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
   <table style="width: 100%; border-collapse: collapse; background: white;">
@@ -188,7 +184,6 @@ export const convertMarkdownTablesToHtml = (content: string): string => {
     console.log('[Table Converter] Converted markdown table to HTML');
   }
   
-  // Also fix inline broken table rendering (|---|)
   result = result.replace(/\|---\|---\|---\|/g, '');
   result = result.replace(/\|\s*\|\s*\|\s*\|/g, '');
   
@@ -202,10 +197,8 @@ export const removeDuplicateSections = (html: string): string => {
   const doc = parser.parseFromString(html, 'text/html');
   const body = doc.body;
 
-  // Track seen section types
   const seenSections = new Map<string, Element>();
   
-  // Enhanced detection patterns
   const sectionPatterns = [
     { 
       type: 'takeaways',
@@ -229,7 +222,6 @@ export const removeDuplicateSections = (html: string): string => {
     },
   ];
 
-  // Process each pattern
   sectionPatterns.forEach(({ type, selectors, textMatch }) => {
     const foundElements: Element[] = [];
     
@@ -250,7 +242,6 @@ export const removeDuplicateSections = (html: string): string => {
       });
     }
     
-    // Keep first, remove duplicates
     foundElements.forEach((el, index) => {
       if (index === 0) {
         seenSections.set(type, el);
@@ -261,7 +252,6 @@ export const removeDuplicateSections = (html: string): string => {
     });
   });
 
-  // Remove duplicate H2 headings with same text
   const h2Map = new Map<string, Element>();
   body.querySelectorAll('h2').forEach(h2 => {
     const text = h2.textContent?.trim().toLowerCase() || '';
@@ -276,21 +266,47 @@ export const removeDuplicateSections = (html: string): string => {
     }
   });
 
-  // CRITICAL: Remove "Internal Linking & Related Resources" sections
-  // These should NOT exist - links should be embedded naturally in content
-  body.querySelectorAll('h2, h3').forEach(heading => {
-    const text = heading.textContent?.toLowerCase() || '';
-    if (text.includes('internal link') || text.includes('related resources') || 
-        text.includes('related links') || text.includes('more resources')) {
-      // Remove the entire section
-      let sibling = heading.nextElementSibling;
-      const toRemove: Element[] = [heading];
-      while (sibling && !['H2', 'H3'].includes(sibling.tagName)) {
-        toRemove.push(sibling);
-        sibling = sibling.nextElementSibling;
+  // CRITICAL: Remove ANY "Internal Linking", "Related Resources", "Related Links" sections
+  // These should NOT exist - links must be embedded naturally in content
+  const headingsToCheck = Array.from(body.querySelectorAll('h2, h3, h4, strong'));
+  headingsToCheck.forEach(heading => {
+    const text = (heading.textContent || '').toLowerCase();
+    if (text.includes('internal link') || 
+        text.includes('related resources') || 
+        text.includes('related links') ||
+        text.includes('more resources') ||
+        text.includes('useful links') ||
+        text.includes('helpful links')) {
+      
+      // Find the parent container and remove the entire section
+      let container = heading.parentElement;
+      let elementsToRemove: Element[] = [];
+      
+      // If the heading is inside a div/section, remove that container
+      if (container && container.tagName !== 'BODY') {
+        // Check if container has mostly list items (links)
+        const listItems = container.querySelectorAll('li, a').length;
+        if (listItems > 2) {
+          elementsToRemove.push(container);
+        }
       }
-      toRemove.forEach(el => el.remove());
-      console.log('[Dedup] Removed "Internal Linking" section - links should be embedded naturally');
+      
+      // Also remove following siblings until next heading
+      if (elementsToRemove.length === 0) {
+        elementsToRemove.push(heading);
+        let sibling = heading.nextElementSibling;
+        while (sibling && !['H2', 'H3', 'H4'].includes(sibling.tagName)) {
+          elementsToRemove.push(sibling);
+          sibling = sibling.nextElementSibling;
+        }
+      }
+      
+      elementsToRemove.forEach(el => {
+        if (el.parentNode) {
+          el.remove();
+          console.log('[Dedup] Removed "Internal Linking" section - links should be embedded naturally');
+        }
+      });
     }
   });
 
@@ -308,14 +324,12 @@ export const extractFaqForSchema = (html: string): Array<{question: string; answ
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   
-  // Method 1: Schema.org markup
   doc.querySelectorAll('[itemtype*="Question"]').forEach(questionEl => {
     const question = questionEl.querySelector('[itemprop="name"]')?.textContent?.trim();
     const answer = questionEl.querySelector('[itemprop="text"]')?.textContent?.trim();
     if (question && answer) faqs.push({ question, answer });
   });
   
-  // Method 2: Details/Summary elements
   if (faqs.length === 0) {
     doc.querySelectorAll('details').forEach(details => {
       const question = details.querySelector('summary')?.textContent?.trim();
@@ -338,19 +352,11 @@ export const smartPostProcess = (html: string): string => {
   
   let processed = html;
   
-  // Step 1: Normalize content
   processed = normalizeGeneratedContent(processed);
-  
-  // Step 2: Convert markdown tables to HTML
   processed = convertMarkdownTablesToHtml(processed);
-  
-  // Step 3: Remove duplicate sections
   processed = removeDuplicateSections(processed);
-  
-  // Step 4: Sanitize dangerous content
   processed = sanitizeContentHtml(processed);
   
-  // Step 5: Clean up empty elements
   processed = processed
     .replace(/<p>\s*<\/p>/g, '')
     .replace(/<div>\s*<\/div>/g, '')
@@ -404,7 +410,6 @@ export const performSurgicalUpdate = (
   const doc = parser.parseFromString(originalHtml, 'text/html');
   const body = doc.body;
 
-  // Remove existing sections before injecting new ones
   if (snippets.keyTakeawaysHtml) {
     body.querySelectorAll('[class*="takeaway"], div[style*="#064E3B"], div[style*="#047857"]').forEach(el => {
       const h3 = el.querySelector('h3');
@@ -414,7 +419,6 @@ export const performSurgicalUpdate = (
     });
   }
 
-  // Inject intro at beginning
   if (snippets.introHtml) {
     const intro = doc.createElement('div');
     intro.innerHTML = snippets.introHtml;
@@ -426,7 +430,6 @@ export const performSurgicalUpdate = (
     }
   }
 
-  // Inject key takeaways after intro (before first H2)
   if (snippets.keyTakeawaysHtml) {
     const takeaways = doc.createElement('div');
     takeaways.innerHTML = snippets.keyTakeawaysHtml;
@@ -445,7 +448,6 @@ export const performSurgicalUpdate = (
     }
   }
 
-  // Inject FAQ section before conclusion
   if (snippets.faqHtml) {
     const faq = doc.createElement('div');
     faq.innerHTML = snippets.faqHtml;
@@ -465,7 +467,6 @@ export const performSurgicalUpdate = (
     }
   }
 
-  // Inject conclusion at end
   if (snippets.conclusionHtml) {
     const conclusion = doc.createElement('div');
     conclusion.innerHTML = snippets.conclusionHtml;
@@ -473,20 +474,15 @@ export const performSurgicalUpdate = (
     body.appendChild(conclusion);
   }
 
-  // CRITICAL: Inject references at the very end (ALWAYS)
-  if (snippets.referencesHtml && snippets.referencesHtml.trim().length > 0) {
-    // First remove any existing references sections to avoid duplicates
-    body.querySelectorAll('.sota-references-section, [class*="reference"]').forEach(el => {
-      if (el.querySelector('h2')?.textContent?.toLowerCase().includes('reference')) {
-        el.remove();
-      }
-    });
+  // CRITICAL: References section MUST be at the very end
+  if (snippets.referencesHtml && snippets.referencesHtml.trim().length > 50) {
+    body.querySelectorAll('.sota-references-section, [class*="references-section"]').forEach(el => el.remove());
     
     const refs = doc.createElement('div');
     refs.innerHTML = snippets.referencesHtml;
-    refs.className = 'sota-references-section';
+    refs.className = 'sota-references-wrapper';
     body.appendChild(refs);
-    console.log('[Surgical Update] Injected references section at end');
+    console.log('[Surgical Update] ✅ Injected references section at end');
   }
 
   return body.innerHTML;
@@ -599,16 +595,25 @@ export const sanitizeContentHtml = (html: string): string => {
   return doc.body.innerHTML;
 };
 
-// ==================== NATURAL INTERNAL LINK INJECTION ====================
-// This is the CRITICAL function that injects links NATURALLY within content
+// ==================== REGEX ESCAPE ====================
 
-export const injectNaturalInternalLinks = (
+export const escapeRegExp = (string: string): string => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+// ==================== FORCE NATURAL INTERNAL LINKS ====================
+// This is the CRITICAL function that FORCES links to be embedded naturally
+
+export const forceNaturalInternalLinks = (
   content: string,
   availablePages: Array<{ title: string; slug: string }>,
   baseUrl: string,
-  maxLinks: number = 12
+  targetLinks: number = 10
 ): string => {
-  if (availablePages.length === 0) return content;
+  if (availablePages.length === 0) {
+    console.log('[Force Links] No pages available for linking');
+    return content;
+  }
   
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, 'text/html');
@@ -618,158 +623,201 @@ export const injectNaturalInternalLinks = (
   const usedSlugs = new Set<string>();
   let linksAdded = 0;
   
-  // Get all paragraphs and list items that can have links injected
-  const textContainers = Array.from(body.querySelectorAll('p, li')).filter(el => {
-    // Skip if already has many links
-    const existingLinks = el.querySelectorAll('a').length;
-    if (existingLinks >= 2) return false;
-    // Skip if in FAQ or references section
-    if (el.closest('.sota-faq-section, .sota-references-section, [class*="faq"], [class*="reference"]')) return false;
-    // Must have enough text
-    const textLength = el.textContent?.length || 0;
-    return textLength > 50;
+  // First, check existing links to avoid duplicates
+  body.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    const match = href.match(/\/([^\/]+)\/?$/);
+    if (match) usedSlugs.add(match[1]);
   });
   
-  // Build keyword-to-page mapping
-  const keywordPageMap: Array<{ keywords: string[]; page: { title: string; slug: string } }> = [];
+  console.log(`[Force Links] Found ${usedSlugs.size} existing linked slugs`);
+  
+  // Get all paragraphs that can have links injected
+  const textContainers = Array.from(body.querySelectorAll('p, li')).filter(el => {
+    const existingLinks = el.querySelectorAll('a').length;
+    if (existingLinks >= 2) return false;
+    if (el.closest('.sota-faq-section, .sota-references-section, .sota-references-wrapper, [class*="faq"], [class*="reference"], .verification-footer-sota')) return false;
+    const textLength = el.textContent?.length || 0;
+    return textLength > 60;
+  });
+  
+  console.log(`[Force Links] Found ${textContainers.length} eligible text containers`);
+  
+  // Build keyword-to-page mapping with expanded keywords
+  interface KeywordPageMapping {
+    keywords: string[];
+    page: { title: string; slug: string };
+    priority: number;
+  }
+  
+  const keywordPageMap: KeywordPageMapping[] = [];
   
   for (const page of availablePages) {
-    // Extract keywords from title and slug
+    if (usedSlugs.has(page.slug)) continue;
+    
+    // Extract keywords from title
     const titleWords = page.title.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/[^a-z0-9\s-]/g, ' ')
       .split(/\s+/)
-      .filter(w => w.length > 3);
+      .filter(w => w.length > 3 && !['with', 'from', 'that', 'this', 'your', 'what', 'when', 'where', 'which', 'have', 'been', 'will', 'they', 'their', 'about', 'into'].includes(w));
+    
+    // Extract keywords from slug
     const slugWords = page.slug.toLowerCase()
       .split('-')
       .filter(w => w.length > 3);
     
-    const keywords = [...new Set([...titleWords, ...slugWords])];
+    // Create 2-word and 3-word phrases from title
+    const phrases: string[] = [];
+    for (let i = 0; i < titleWords.length - 1; i++) {
+      phrases.push(`${titleWords[i]} ${titleWords[i + 1]}`);
+      if (i < titleWords.length - 2) {
+        phrases.push(`${titleWords[i]} ${titleWords[i + 1]} ${titleWords[i + 2]}`);
+      }
+    }
+    
+    const keywords = [...new Set([...titleWords, ...slugWords, ...phrases])];
     if (keywords.length > 0) {
-      keywordPageMap.push({ keywords, page });
+      // Higher priority for more specific pages (longer titles)
+      const priority = page.title.split(' ').length;
+      keywordPageMap.push({ keywords, page, priority });
     }
   }
   
+  // Sort by priority (more specific pages first)
+  keywordPageMap.sort((a, b) => b.priority - a.priority);
+  
+  console.log(`[Force Links] Built keyword map for ${keywordPageMap.length} pages`);
+  
   // Process each text container
   for (const container of textContainers) {
-    if (linksAdded >= maxLinks) break;
+    if (linksAdded >= targetLinks) break;
     
     const text = container.textContent?.toLowerCase() || '';
+    const originalHtml = container.innerHTML;
     
     // Find the best matching page for this paragraph
-    let bestMatch: { page: { title: string; slug: string }; phrase: string; score: number } | null = null;
-    
     for (const { keywords, page } of keywordPageMap) {
       if (usedSlugs.has(page.slug)) continue;
+      if (linksAdded >= targetLinks) break;
       
-      // Find matching keywords in text
-      const matchingKeywords = keywords.filter(kw => text.includes(kw));
-      if (matchingKeywords.length === 0) continue;
+      // Find matching keywords/phrases in text
+      let bestPhrase = '';
+      let bestScore = 0;
       
-      // Calculate score based on number of matching keywords
-      const score = matchingKeywords.length / keywords.length;
+      // First try to find multi-word phrases
+      for (const kw of keywords) {
+        if (kw.includes(' ') && text.includes(kw)) {
+          const score = kw.split(' ').length * 2; // Prefer longer phrases
+          if (score > bestScore) {
+            bestScore = score;
+            bestPhrase = kw;
+          }
+        }
+      }
       
-      // Find the best phrase to use as anchor text (2-5 words containing keywords)
-      const words = container.textContent?.split(/\s+/) || [];
-      let anchorPhrase = '';
-      
-      for (let i = 0; i < words.length; i++) {
-        for (let len = 2; len <= 5 && i + len <= words.length; len++) {
-          const phrase = words.slice(i, i + len).join(' ');
-          const phraseLower = phrase.toLowerCase();
-          const phraseMatches = matchingKeywords.filter(kw => phraseLower.includes(kw)).length;
+      // If no phrase found, look for single keywords and build anchor text
+      if (!bestPhrase) {
+        const matchingKeywords = keywords.filter(kw => !kw.includes(' ') && text.includes(kw));
+        if (matchingKeywords.length >= 1) {
+          // Find the keyword in context and extract a good anchor phrase
+          const words = container.textContent?.split(/\s+/) || [];
           
-          if (phraseMatches > 0 && !anchorPhrase) {
-            // Check if this phrase is not already a link
-            if (!container.innerHTML.includes(`>${phrase}<`)) {
-              anchorPhrase = phrase;
+          for (let i = 0; i < words.length; i++) {
+            const wordLower = words[i].toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (matchingKeywords.some(kw => wordLower.includes(kw) || kw.includes(wordLower))) {
+              // Build a 2-4 word phrase around this word
+              const start = Math.max(0, i - 1);
+              const end = Math.min(words.length, i + 3);
+              const phrase = words.slice(start, end).join(' ');
+              
+              // Clean the phrase
+              const cleanPhrase = phrase.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '');
+              if (cleanPhrase.length > 8 && cleanPhrase.length < 60) {
+                bestPhrase = cleanPhrase;
+                bestScore = 1;
+                break;
+              }
             }
           }
         }
       }
       
-      if (anchorPhrase && score > (bestMatch?.score || 0)) {
-        bestMatch = { page, phrase: anchorPhrase, score };
-      }
-    }
-    
-    // Inject the link if we found a good match
-    if (bestMatch && bestMatch.score >= 0.3) {
-      const { page, phrase } = bestMatch;
-      const url = `${cleanBaseUrl}/${page.slug}/`;
-      
-      // Create the link HTML
-      const linkHtml = `<a href="${url}" title="${page.title}" style="color: #1E40AF; text-decoration: underline; font-weight: 500;">${phrase}</a>`;
-      
-      // Replace the first occurrence of the phrase (case-insensitive but preserve original case)
-      const regex = new RegExp(`(?<!<a[^>]*>)\\b(${escapeRegExp(phrase)})\\b(?![^<]*<\\/a>)`, 'i');
-      const originalHtml = container.innerHTML;
-      const newHtml = originalHtml.replace(regex, linkHtml);
-      
-      if (newHtml !== originalHtml) {
-        container.innerHTML = newHtml;
-        usedSlugs.add(page.slug);
-        linksAdded++;
-        console.log(`[Natural Links] Added link: "${phrase}" → ${page.slug}`);
+      // Inject the link if we found a good phrase
+      if (bestPhrase && bestScore >= 1) {
+        const url = `${cleanBaseUrl}/${page.slug}/`;
+        const linkHtml = `<a href="${url}" title="${page.title}" style="color: #1E40AF; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; font-weight: 500;">${bestPhrase}</a>`;
+        
+        // Replace only the first occurrence, being careful not to break existing links
+        const escapedPhrase = escapeRegExp(bestPhrase);
+        const regex = new RegExp(`(?<!<a[^>]*>)(?<!<[^>]*)\\b(${escapedPhrase})\\b(?![^<]*<\\/a>)`, 'i');
+        const newHtml = container.innerHTML.replace(regex, linkHtml);
+        
+        if (newHtml !== originalHtml && newHtml.includes(url)) {
+          container.innerHTML = newHtml;
+          usedSlugs.add(page.slug);
+          linksAdded++;
+          console.log(`[Force Links] ✅ Added link: "${bestPhrase}" → ${page.slug}`);
+          break; // Move to next container
+        }
       }
     }
   }
   
-  console.log(`[Natural Links] Injected ${linksAdded} natural internal links`);
+  console.log(`[Force Links] 🔗 Total links injected: ${linksAdded}/${targetLinks}`);
   return body.innerHTML;
 };
 
-// Legacy function for [LINK_CANDIDATE:] markers (keep for backward compatibility)
+// Legacy function wrapper - calls forceNaturalInternalLinks
 export const processInternalLinkCandidates = (
   content: string,
   availablePages: Array<{ title: string; slug: string }>,
   baseUrl: string,
   maxLinks: number = 12
 ): string => {
-  // First, process any [LINK_CANDIDATE:] markers
+  // First process any [LINK_CANDIDATE:] markers
   const linkPattern = /\[LINK_CANDIDATE:\s*([^\]]+)\]/g;
   let processedContent = content;
-  let linkCount = 0;
+  let markerCount = 0;
   const usedSlugs = new Set<string>();
 
   processedContent = processedContent.replace(linkPattern, (match, anchorText) => {
-    if (linkCount >= maxLinks) return anchorText;
+    if (markerCount >= maxLinks) return anchorText;
 
     const targetPage = findBestMatchingPage(anchorText.trim(), availablePages, usedSlugs);
     
     if (targetPage) {
-      linkCount++;
+      markerCount++;
       usedSlugs.add(targetPage.slug);
       const url = `${baseUrl.replace(/\/+$/, '')}/${targetPage.slug}/`;
-      return `<a href="${url}" title="${targetPage.title}" style="color: #1E40AF; text-decoration: underline; font-weight: 500;">${anchorText}</a>`;
+      console.log(`[Link Candidates] Processed marker: "${anchorText}" → ${targetPage.slug}`);
+      return `<a href="${url}" title="${targetPage.title}" style="color: #1E40AF; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; font-weight: 500;">${anchorText}</a>`;
     }
     
     return anchorText;
   });
 
-  console.log(`[Link Candidates] Processed ${linkCount} [LINK_CANDIDATE:] markers`);
+  console.log(`[Link Candidates] Processed ${markerCount} [LINK_CANDIDATE:] markers`);
   
-  // Then inject additional natural links if we haven't reached the max
-  if (linkCount < maxLinks) {
-    // Update usedSlugs with already linked pages from the processed content
-    const existingLinks = processedContent.match(/href="[^"]*\/([^/"]+)\/?"/g) || [];
-    existingLinks.forEach(link => {
-      const match = link.match(/\/([^/"]+)\/?"/);
-      if (match) usedSlugs.add(match[1]);
-    });
-    
-    // Filter out already used pages
-    const remainingPages = availablePages.filter(p => !usedSlugs.has(p.slug));
-    
-    processedContent = injectNaturalInternalLinks(
+  // CRITICAL: ALWAYS inject natural links, regardless of markers
+  // Filter out already used pages
+  const remainingPages = availablePages.filter(p => !usedSlugs.has(p.slug));
+  const remainingLinks = maxLinks - markerCount;
+  
+  if (remainingLinks > 0 && remainingPages.length > 0) {
+    console.log(`[Link Candidates] Now forcing ${remainingLinks} natural links...`);
+    processedContent = forceNaturalInternalLinks(
       processedContent,
       remainingPages,
       baseUrl,
-      maxLinks - linkCount
+      remainingLinks
     );
   }
   
   return processedContent;
 };
+
+// Alias for backward compatibility
+export const injectNaturalInternalLinks = forceNaturalInternalLinks;
 
 function findBestMatchingPage(
   anchorText: string,
@@ -795,7 +843,7 @@ function findBestMatchingPage(
     
     const score = matchingWords.length / Math.max(anchorWords.length, 1);
     
-    if (score > bestScore && score >= 0.3) {
+    if (score > bestScore && score >= 0.25) {
       bestScore = score;
       bestMatch = page;
     }
@@ -917,10 +965,6 @@ export const generateComparisonTableHtml = (
 
 // ==================== READABILITY ====================
 
-export const escapeRegExp = (string: string): string => {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
 export const calculateFleschReadability = (text: string): number => {
   if (!text || text.trim().length === 0) return 100;
   const words: string[] = text.match(/\b\w+\b/g) || [];
@@ -974,6 +1018,7 @@ export default {
   smartPostProcess,
   extractFaqForSchema,
   processInternalLinkCandidates,
+  forceNaturalInternalLinks,
   injectNaturalInternalLinks,
   extractImagesFromHtml,
   injectImagesIntoContent,
