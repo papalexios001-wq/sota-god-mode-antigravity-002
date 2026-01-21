@@ -9,20 +9,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
-    "@google/genai": "^0.7.0",
+    "@anthropic-ai/sdk": "^0.66.0",
+    "@google/genai": "^1.31.0",
     "mermaid": "^11.4.0",
-    "openai": "^4.77.0",
+    "openai": "^6.10.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-quill": "^2.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^20.19.25",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.5"
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
   }
 }
