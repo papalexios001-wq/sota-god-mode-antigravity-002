@@ -1,47 +1,112 @@
 // =============================================================================
-// SOTA WP CONTENT OPTIMIZER PRO - SCHEMA GENERATOR v12.0
+// SOTA WP CONTENT OPTIMIZER PRO - SCHEMA GENERATOR v12.1
 // Enterprise-Grade JSON-LD Schema Generation
+// CRITICAL FIX: Now accepts object parameter with defensive null checks
 // =============================================================================
 
 import { SiteInfo, FAQItem } from './types';
 
+// ==================== INPUT INTERFACE ====================
+
+export interface SchemaGeneratorInput {
+  title: string;
+  description: string;
+  content?: string;
+  author?: string;
+  authorName?: string;
+  datePublished: string;
+  dateModified?: string;
+  url?: string;
+  siteInfo?: SiteInfo | null;
+  faqs?: FAQItem[];
+  faqItems?: FAQItem[];
+}
+
+// ==================== DEFAULT SITE INFO ====================
+
+const DEFAULT_SITE_INFO: SiteInfo = {
+  orgName: 'Website',
+  orgUrl: '',
+  logoUrl: '',
+  authorName: 'Expert Author',
+  authorUrl: '',
+  authorSameAs: [],
+  orgSameAs: [],
+};
+
 // ==================== FULL SCHEMA GENERATION ====================
 
 export const generateFullSchema = (
-  title: string,
-  description: string,
-  authorName: string,
-  datePublished: string,
-  url: string,
-  siteInfo: SiteInfo,
-  faqs?: FAQItem[]
+  input: SchemaGeneratorInput | string,
+  descriptionOrNothing?: string,
+  authorNameParam?: string,
+  datePublishedParam?: string,
+  urlParam?: string,
+  siteInfoParam?: SiteInfo,
+  faqsParam?: FAQItem[]
 ): Record<string, any> => {
-  const currentYear = new Date().getFullYear();
   
+  // Handle both object and legacy parameter formats
+  let title: string;
+  let description: string;
+  let authorName: string;
+  let datePublished: string;
+  let url: string;
+  let siteInfo: SiteInfo;
+  let faqs: FAQItem[];
+
+  if (typeof input === 'object' && input !== null) {
+    // NEW: Object parameter format (from services.tsx)
+    title = input.title || 'Untitled';
+    description = input.description || '';
+    authorName = input.author || input.authorName || DEFAULT_SITE_INFO.authorName || 'Expert Author';
+    datePublished = input.datePublished || new Date().toISOString();
+    url = input.url || (typeof window !== 'undefined' ? window.location.href : '');
+    
+    // CRITICAL: Defensive siteInfo handling
+    siteInfo = input.siteInfo 
+      ? { ...DEFAULT_SITE_INFO, ...input.siteInfo }
+      : { ...DEFAULT_SITE_INFO };
+    
+    faqs = input.faqs || input.faqItems || [];
+  } else {
+    // LEGACY: Individual parameters format
+    title = input || 'Untitled';
+    description = descriptionOrNothing || '';
+    authorName = authorNameParam || DEFAULT_SITE_INFO.authorName || 'Expert Author';
+    datePublished = datePublishedParam || new Date().toISOString();
+    url = urlParam || (typeof window !== 'undefined' ? window.location.href : '');
+    
+    // CRITICAL: Defensive siteInfo handling
+    siteInfo = siteInfoParam 
+      ? { ...DEFAULT_SITE_INFO, ...siteInfoParam }
+      : { ...DEFAULT_SITE_INFO };
+    
+    faqs = faqsParam || [];
+  }
+
+  const currentYear = new Date().getFullYear();
   const schemas: any[] = [];
 
+  // Safe access helper
+  const safeGet = <T,>(value: T | undefined | null, fallback: T): T => {
+    return value !== undefined && value !== null ? value : fallback;
+  };
+
   // 1. Article Schema
-  const articleSchema = {
+  const articleSchema: any = {
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": title,
     "description": description,
-    "image": siteInfo.logoUrl || undefined,
     "author": {
       "@type": "Person",
-      "name": authorName || siteInfo.authorName || "Expert Author",
-      "url": siteInfo.authorUrl || undefined,
-      "sameAs": siteInfo.authorSameAs || []
+      "name": authorName || safeGet(siteInfo?.authorName, 'Expert Author'),
     },
     "publisher": {
       "@type": "Organization",
-      "name": siteInfo.orgName || "Website",
-      "logo": siteInfo.logoUrl ? {
-        "@type": "ImageObject",
-        "url": siteInfo.logoUrl
-      } : undefined,
-      "url": siteInfo.orgUrl || url,
-      "sameAs": siteInfo.orgSameAs || []
+      "name": safeGet(siteInfo?.orgName, 'Website'),
+      "url": safeGet(siteInfo?.orgUrl, url),
     },
     "datePublished": datePublished,
     "dateModified": new Date().toISOString(),
@@ -53,12 +118,36 @@ export const generateFullSchema = (
     "copyrightYear": currentYear,
     "copyrightHolder": {
       "@type": "Organization",
-      "name": siteInfo.orgName || "Website"
+      "name": safeGet(siteInfo?.orgName, 'Website')
     }
   };
+
+  // Only add image if logoUrl exists and is non-empty
+  if (siteInfo?.logoUrl) {
+    articleSchema.image = siteInfo.logoUrl;
+    articleSchema.publisher.logo = {
+      "@type": "ImageObject",
+      "url": siteInfo.logoUrl
+    };
+  }
+
+  // Only add author URL if exists
+  if (siteInfo?.authorUrl) {
+    articleSchema.author.url = siteInfo.authorUrl;
+  }
+
+  // Only add sameAs arrays if they have values
+  if (siteInfo?.authorSameAs && siteInfo.authorSameAs.length > 0) {
+    articleSchema.author.sameAs = siteInfo.authorSameAs;
+  }
+  if (siteInfo?.orgSameAs && siteInfo.orgSameAs.length > 0) {
+    articleSchema.publisher.sameAs = siteInfo.orgSameAs;
+  }
+
   schemas.push(articleSchema);
 
   // 2. Breadcrumb Schema
+  const baseUrl = url ? url.split('/').slice(0, 3).join('/') : '';
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -67,7 +156,7 @@ export const generateFullSchema = (
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": siteInfo.orgUrl || url.split('/').slice(0, 3).join('/')
+        "item": safeGet(siteInfo?.orgUrl, baseUrl) || baseUrl
       },
       {
         "@type": "ListItem",
@@ -80,16 +169,16 @@ export const generateFullSchema = (
   schemas.push(breadcrumbSchema);
 
   // 3. FAQ Schema (if FAQs provided)
-  if (faqs && faqs.length > 0) {
+  if (faqs && Array.isArray(faqs) && faqs.length > 0) {
     const faqSchema = {
       "@context": "https://schema.org",
       "@type": "FAQPage",
       "mainEntity": faqs.map(faq => ({
         "@type": "Question",
-        "name": faq.question,
+        "name": faq.question || '',
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": faq.answer
+          "text": faq.answer || ''
         }
       }))
     };
@@ -105,8 +194,8 @@ export const generateFullSchema = (
     "url": url,
     "isPartOf": {
       "@type": "WebSite",
-      "name": siteInfo.orgName || "Website",
-      "url": siteInfo.orgUrl || url.split('/').slice(0, 3).join('/')
+      "name": safeGet(siteInfo?.orgName, 'Website'),
+      "url": safeGet(siteInfo?.orgUrl, baseUrl) || baseUrl
     },
     "about": {
       "@type": "Thing",
@@ -127,7 +216,12 @@ export const generateFullSchema = (
 // ==================== SCHEMA MARKUP HTML ====================
 
 export const generateSchemaMarkup = (schema: Record<string, any>): string => {
-  return `<script type="application/ld+json">${JSON.stringify(schema, null, 2)}</script>`;
+  try {
+    return `<script type="application/ld+json">${JSON.stringify(schema, null, 2)}</script>`;
+  } catch (error) {
+    console.error('[generateSchemaMarkup] Error:', error);
+    return '';
+  }
 };
 
 // ==================== PRODUCT SCHEMA ====================
@@ -146,11 +240,11 @@ export const generateProductSchema = (
   const schema: any = {
     "@context": "https://schema.org",
     "@type": "Product",
-    "name": name,
-    "description": description,
+    "name": name || 'Product',
+    "description": description || '',
     "offers": {
       "@type": "Offer",
-      "price": price,
+      "price": price || 0,
       "priceCurrency": currency,
       "availability": `https://schema.org/${availability}`,
       "url": typeof window !== 'undefined' ? window.location.href : ''
@@ -193,14 +287,14 @@ export const generateHowToSchema = (
   const schema: any = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    "name": name,
-    "description": description,
-    "step": steps.map((step, index) => ({
+    "name": name || 'How To Guide',
+    "description": description || '',
+    "step": (steps || []).map((step, index) => ({
       "@type": "HowToStep",
       "position": index + 1,
-      "name": step.name,
-      "text": step.text,
-      "image": step.imageUrl || undefined
+      "name": step?.name || `Step ${index + 1}`,
+      "text": step?.text || '',
+      ...(step?.imageUrl ? { "image": step.imageUrl } : {})
     }))
   };
 
@@ -211,8 +305,8 @@ export const generateHowToSchema = (
   if (estimatedCost) {
     schema.estimatedCost = {
       "@type": "MonetaryAmount",
-      "currency": estimatedCost.currency,
-      "value": estimatedCost.value
+      "currency": estimatedCost.currency || 'USD',
+      "value": estimatedCost.value || 0
     };
   }
 
@@ -240,11 +334,15 @@ export const generateLocalBusinessSchema = (
   const schema: any = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    "name": name,
-    "description": description,
+    "name": name || 'Business',
+    "description": description || '',
     "address": {
       "@type": "PostalAddress",
-      ...address
+      "streetAddress": address?.streetAddress || '',
+      "addressLocality": address?.addressLocality || '',
+      "addressRegion": address?.addressRegion || '',
+      "postalCode": address?.postalCode || '',
+      "addressCountry": address?.addressCountry || ''
     }
   };
 
@@ -264,7 +362,7 @@ export const generateLocalBusinessSchema = (
     schema.image = imageUrl;
   }
 
-  if (geo) {
+  if (geo?.latitude && geo?.longitude) {
     schema.geo = {
       "@type": "GeoCoordinates",
       "latitude": geo.latitude,
@@ -289,10 +387,10 @@ export const generateVideoSchema = (
   const schema: any = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
-    "name": name,
-    "description": description,
-    "thumbnailUrl": thumbnailUrl,
-    "uploadDate": uploadDate
+    "name": name || 'Video',
+    "description": description || '',
+    "thumbnailUrl": thumbnailUrl || '',
+    "uploadDate": uploadDate || new Date().toISOString()
   };
 
   if (duration) {
@@ -330,25 +428,27 @@ export const generateEventSchema = (
   const schema: any = {
     "@context": "https://schema.org",
     "@type": "Event",
-    "name": name,
-    "description": description,
-    "startDate": startDate,
-    "endDate": endDate,
+    "name": name || 'Event',
+    "description": description || '',
+    "startDate": startDate || new Date().toISOString(),
+    "endDate": endDate || new Date().toISOString(),
     "eventStatus": `https://schema.org/${eventStatus}`,
     "eventAttendanceMode": `https://schema.org/${eventAttendanceMode}`
   };
 
-  if ('url' in location) {
-    schema.location = {
-      "@type": "VirtualLocation",
-      "url": location.url
-    };
-  } else {
-    schema.location = {
-      "@type": "Place",
-      "name": location.name,
-      "address": location.address
-    };
+  if (location) {
+    if ('url' in location) {
+      schema.location = {
+        "@type": "VirtualLocation",
+        "url": location.url || ''
+      };
+    } else {
+      schema.location = {
+        "@type": "Place",
+        "name": location.name || 'Venue',
+        "address": location.address || ''
+      };
+    }
   }
 
   if (imageUrl) {
@@ -365,9 +465,9 @@ export const generateEventSchema = (
   if (offers) {
     schema.offers = {
       "@type": "Offer",
-      "price": offers.price,
-      "priceCurrency": offers.currency,
-      "availability": `https://schema.org/${offers.availability}`
+      "price": offers.price || 0,
+      "priceCurrency": offers.currency || 'USD',
+      "availability": `https://schema.org/${offers.availability || 'InStock'}`
     };
   }
 
@@ -387,21 +487,21 @@ export const generateReviewSchema = (
     "@context": "https://schema.org",
     "@type": "Review",
     "itemReviewed": {
-      "@type": itemReviewed.type,
-      "name": itemReviewed.name
+      "@type": itemReviewed?.type || 'Thing',
+      "name": itemReviewed?.name || 'Item'
     },
     "reviewRating": {
       "@type": "Rating",
-      "ratingValue": reviewRating,
+      "ratingValue": reviewRating || 5,
       "bestRating": 5,
       "worstRating": 1
     },
     "author": {
       "@type": "Person",
-      "name": author
+      "name": author || 'Anonymous'
     },
-    "reviewBody": reviewBody,
-    "datePublished": datePublished
+    "reviewBody": reviewBody || '',
+    "datePublished": datePublished || new Date().toISOString()
   };
 };
 
