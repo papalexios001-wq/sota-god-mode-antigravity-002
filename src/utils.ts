@@ -1,212 +1,498 @@
 // =============================================================================
-// SOTA WP CONTENT OPTIMIZER PRO - UTILITY FUNCTIONS v12.0
-// Enterprise-Grade Utilities with Error Handling
+// SOTA WP CONTENT OPTIMIZER PRO - UTILITIES v12.0
+// Enterprise-Grade Utility Functions with Robust JSON Parsing
 // =============================================================================
 
-import { SortConfig } from './types';
-
-// ==================== RETRY & RESILIENCE ====================
+// ==================== RETRY LOGIC ====================
 
 /**
  * Calls an async function with exponential backoff retry logic
+ * @param fn - The async function to call
+ * @param maxRetries - Maximum number of retry attempts
+ * @param baseDelay - Base delay in milliseconds between retries
+ * @returns Promise resolving to the function result
  */
-export const callAiWithRetry = async <T,>(
+export const callAiWithRetry = async <T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
   baseDelay: number = 1000
 ): Promise<T> => {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error: any) {
       lastError = error;
-      
+
       // Don't retry on authentication errors
-      if (error?.status === 401 || error?.status === 403) {
+      if (error.status === 401 || error.status === 403) {
         throw error;
       }
-      
-      // Don't retry on rate limits without waiting
-      if (error?.status === 429) {
-        const retryAfter = parseInt(error.headers?.['retry-after'] || '60', 10);
-        await delay(retryAfter * 1000);
-        continue;
-      }
-      
+
+      // Don't retry on rate limit if it's the last attempt
       if (attempt < maxRetries - 1) {
-        const backoffDelay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        console.warn(`[Retry] Attempt ${attempt + 1} failed, retrying in ${Math.round(backoffDelay)}ms...`);
-        await delay(backoffDelay);
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.warn(`[callAiWithRetry] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
-  
-  throw lastError || new Error('Max retries exceeded');
+
+  throw lastError || new Error('All retry attempts failed');
 };
 
-/**
- * Fetches WordPress API with retry logic
- */
-export const fetchWordPressWithRetry = async (
-  url: string,
-  options: RequestInit,
-  maxRetries: number = 3
-): Promise<Response> => {
-  return callAiWithRetry(async () => {
-    const response = await fetch(url, {
-      ...options,
-      signal: AbortSignal.timeout(30000),
-    });
-    
-    if (!response.ok && response.status !== 400 && response.status !== 404) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`WordPress API Error (${response.status}): ${errorText}`);
-    }
-    
-    return response;
-  }, maxRetries);
-};
-
-// ==================== DEBOUNCE & THROTTLE ====================
+// ==================== DEBOUNCE ====================
 
 /**
  * Creates a debounced version of a function
+ * @param fn - The function to debounce
+ * @param delay - Delay in milliseconds
+ * @returns Debounced function
  */
 export const debounce = <T extends (...args: any[]) => any>(
   fn: T,
   delay: number
 ): ((...args: Parameters<T>) => void) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  
+
   return (...args: Parameters<T>) => {
-    if (timeoutId) clearTimeout(timeoutId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
     timeoutId = setTimeout(() => fn(...args), delay);
   };
 };
 
+// ==================== THROTTLE ====================
+
 /**
  * Creates a throttled version of a function
+ * @param fn - The function to throttle
+ * @param limit - Time limit in milliseconds
+ * @returns Throttled function
  */
 export const throttle = <T extends (...args: any[]) => any>(
   fn: T,
   limit: number
 ): ((...args: Parameters<T>) => void) => {
   let inThrottle = false;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       fn(...args);
       inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
     }
   };
 };
 
-// ==================== ASYNC UTILITIES ====================
+// ==================== WORDPRESS FETCH ====================
 
 /**
- * Delays execution for specified milliseconds
+ * Fetches from WordPress with retry logic
+ * @param url - The URL to fetch
+ * @param options - Fetch options
+ * @param maxRetries - Maximum retries
+ * @returns Promise resolving to Response
  */
-export const delay = (ms: number): Promise<void> => 
-  new Promise(resolve => setTimeout(resolve, ms));
+export const fetchWordPressWithRetry = async (
+  url: string,
+  options: RequestInit,
+  maxRetries: number = 3
+): Promise<Response> => {
+  let lastError: Error | null = null;
 
-/**
- * Processes items concurrently with a limit
- */
-export const processConcurrently = async <T, R>(
-  items: T[],
-  processor: (item: T, index: number) => Promise<R>,
-  concurrencyLimit: number = 5,
-  onProgress?: (current: number, total: number) => void,
-  shouldStop?: () => boolean
-): Promise<R[]> => {
-  const results: R[] = [];
-  let currentIndex = 0;
-  let completedCount = 0;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  const processNext = async (): Promise<void> => {
-    while (currentIndex < items.length) {
-      if (shouldStop?.()) return;
-      
-      const index = currentIndex++;
-      const item = items[index];
-      
-      try {
-        const result = await processor(item, index);
-        results[index] = result;
-      } catch (error) {
-        console.error(`Error processing item ${index}:`, error);
-        results[index] = null as any;
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`[fetchWordPressWithRetry] Attempt ${attempt + 1} failed:`, error.message);
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
       }
-      
-      completedCount++;
-      onProgress?.(completedCount, items.length);
     }
-  };
-
-  const workers = Array(Math.min(concurrencyLimit, items.length))
-    .fill(null)
-    .map(() => processNext());
-
-  await Promise.all(workers);
-  return results;
-};
-
-// ==================== STRING UTILITIES ====================
-
-/**
- * Sanitizes a title, extracting from URL if needed
- */
-export const sanitizeTitle = (title: string, slug?: string): string => {
-  if (!title || title === 'Untitled' || title.startsWith('http')) {
-    if (slug) {
-      return slug
-        .replace(/-/g, ' ')
-        .replace(/\b\w/g, c => c.toUpperCase())
-        .trim();
-    }
-    return 'Untitled';
   }
-  return title.trim();
+
+  throw lastError || new Error('WordPress request failed after all retries');
 };
 
+// ==================== SLUG EXTRACTION ====================
+
 /**
- * Extracts slug from a full URL
+ * Extracts the slug from a URL
+ * @param url - The URL to extract slug from
+ * @returns The extracted slug
  */
 export const extractSlugFromUrl = (url: string): string => {
   try {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname.replace(/^\/|\/$/g, '');
-    const segments = pathname.split('/');
-    return segments[segments.length - 1] || segments[segments.length - 2] || 'page';
+    const segments = pathname.split('/').filter(Boolean);
+    return segments[segments.length - 1] || segments[segments.length - 2] || '';
   } catch {
-    // If not a valid URL, treat as slug
-    return url.replace(/^\/|\/$/g, '').split('/').pop() || 'page';
+    // If not a valid URL, assume it's already a slug or path
+    return url.replace(/^\/|\/$/g, '').split('/').filter(Boolean).pop() || url;
+  }
+};
+
+// ==================== TITLE SANITIZATION ====================
+
+/**
+ * Sanitizes a title, providing fallback from slug if needed
+ * @param title - The title to sanitize
+ * @param fallbackSlug - Optional fallback slug
+ * @returns Sanitized title
+ */
+export const sanitizeTitle = (title: string, fallbackSlug?: string): string => {
+  if (!title || title === 'Untitled' || title.startsWith('http')) {
+    if (fallbackSlug) {
+      return fallbackSlug
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+    return 'Untitled Page';
+  }
+  return title;
+};
+
+// ==================== JSON PARSING - CRITICAL FIX ====================
+
+/**
+ * Strips markdown code block wrappers from AI responses
+ * Handles: ```json ... ```, ```JSON ... ```, ``` ... ```, and raw JSON
+ * @param text - The text to clean
+ * @returns Cleaned text without markdown wrappers
+ */
+export const stripMarkdownCodeBlocks = (text: string): string => {
+  if (!text || typeof text !== 'string') return '';
+
+  let cleaned = text.trim();
+
+  // Remove ```json or ```JSON or ```javascript wrapper (case insensitive)
+  const codeBlockStartRegex = /^```(?:json|JSON|javascript|Javascript|JS|js)?\s*\n?/;
+  const codeBlockEndRegex = /\n?```\s*$/;
+
+  if (codeBlockStartRegex.test(cleaned)) {
+    cleaned = cleaned.replace(codeBlockStartRegex, '');
+  }
+
+  if (codeBlockEndRegex.test(cleaned)) {
+    cleaned = cleaned.replace(codeBlockEndRegex, '');
+  }
+
+  return cleaned.trim();
+};
+
+/**
+ * Extracts JSON from potentially messy AI response
+ * Handles markdown wrappers, extra text before/after JSON, etc.
+ * @param response - The raw response text
+ * @returns Extracted JSON string
+ */
+export const extractJsonFromResponse = (response: string): string => {
+  if (!response || typeof response !== 'string') {
+    throw new Error('Empty or invalid response');
+  }
+
+  let cleaned = response.trim();
+
+  // Step 1: Strip markdown code blocks
+  cleaned = stripMarkdownCodeBlocks(cleaned);
+
+  // Step 2: Try to find JSON boundaries
+  // Look for JSON object { ... }
+  const jsonObjectMatch = cleaned.match(/(\{[\s\S]*\})/);
+  // Look for JSON array [ ... ]
+  const jsonArrayMatch = cleaned.match(/(\[[\s\S]*\])/);
+
+  // Determine which match to use
+  if (jsonObjectMatch && jsonArrayMatch) {
+    // Both exist - use whichever appears first
+    const objectIndex = cleaned.indexOf(jsonObjectMatch);
+    const arrayIndex = cleaned.indexOf(jsonArrayMatch);
+
+    if (objectIndex !== -1 && arrayIndex !== -1) {
+      cleaned = objectIndex < arrayIndex ? jsonObjectMatch : jsonArrayMatch;
+    } else if (objectIndex !== -1) {
+      cleaned = jsonObjectMatch;
+    } else {
+      cleaned = jsonArrayMatch;
+    }
+  } else if (jsonObjectMatch) {
+    cleaned = jsonObjectMatch;
+  } else if (jsonArrayMatch) {
+    cleaned = jsonArrayMatch;
+  }
+
+  // Step 3: Final trim
+  return cleaned.trim();
+};
+
+/**
+ * Cleans up common JSON formatting issues from AI responses
+ * @param jsonString - The JSON string to clean
+ * @returns Cleaned JSON string
+ */
+const cleanupJsonString = (jsonString: string): string => {
+  let cleaned = jsonString;
+
+  // Remove trailing commas before ] or }
+  cleaned = cleaned.replace(/,\s*]/g, ']');
+  cleaned = cleaned.replace(/,\s*}/g, '}');
+
+  // Fix unquoted property names (simple cases)
+  cleaned = cleaned.replace(/({|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+  // Remove control characters that break JSON
+  cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, (char) => {
+    // Keep newlines and tabs as escaped versions
+    if (char === '\n') return '\\n';
+    if (char === '\r') return '\\r';
+    if (char === '\t') return '\\t';
+    return ' ';
+  });
+
+  // Fix single quotes used instead of double quotes for strings
+  // This is tricky - only do it if it looks like the pattern "key": 'value'
+  cleaned = cleaned.replace(/:\s*'([^']*)'/g, ': "$1"');
+
+  return cleaned;
+};
+
+/**
+ * Parse JSON with AI repair fallback
+ * Strips markdown wrappers before parsing
+ * @param responseText - The raw response text from AI
+ * @param aiRepairer - Optional function to repair broken JSON using AI
+ * @returns Parsed JSON object
+ */
+export const parseJsonWithAiRepair = async (
+  responseText: string,
+  aiRepairer?: (brokenText: string) => Promise<string>
+): Promise<any> => {
+  if (!responseText || typeof responseText !== 'string') {
+    throw new Error('Invalid response text for JSON parsing');
+  }
+
+  // Step 1: Extract and clean JSON
+  let cleanedJson: string;
+  try {
+    cleanedJson = extractJsonFromResponse(responseText);
+  } catch (e) {
+    console.error('[parseJsonWithAiRepair] Failed to extract JSON:', e);
+    cleanedJson = responseText.trim();
+  }
+
+  // Step 2: Try direct parse
+  try {
+    return JSON.parse(cleanedJson);
+  } catch (firstError) {
+    console.warn('[parseJsonWithAiRepair] First parse attempt failed, trying cleanup...');
+
+    // Step 3: Try with cleanup
+    try {
+      const furtherCleaned = cleanupJsonString(cleanedJson);
+      return JSON.parse(furtherCleaned);
+    } catch (secondError) {
+      console.warn('[parseJsonWithAiRepair] Second parse attempt failed, trying AI repair...');
+
+      // Step 4: AI repair as last resort
+      if (aiRepairer) {
+        try {
+          const repairedText = await aiRepairer(cleanedJson);
+          const repairedCleaned = extractJsonFromResponse(repairedText);
+          return JSON.parse(repairedCleaned);
+        } catch (repairError) {
+          console.error('[parseJsonWithAiRepair] AI repair also failed:', repairError);
+        }
+      }
+
+      // Final fallback: throw with context
+      const preview = responseText.substring(0, 150).replace(/\n/g, ' ');
+      throw new Error(
+        `Could not extract valid JSON from AI response. Response starts with: "${preview}..." (Total length: ${responseText.length} chars)`
+      );
+    }
+  }
+};
+
+// ==================== CONCURRENT PROCESSING ====================
+
+/**
+ * Processes items concurrently with controlled parallelism
+ * @param items - Array of items to process
+ * @param processor - Async function to process each item
+ * @param concurrency - Maximum concurrent operations
+ * @param onProgress - Optional progress callback
+ * @param shouldStop - Optional function to check if processing should stop
+ * @returns Array of results
+ */
+export const processConcurrently = async <T, R>(
+  items: T[],
+  processor: (item: T, index: number) => Promise<R>,
+  concurrency: number = 3,
+  onProgress?: (current: number, total: number) => void,
+  shouldStop?: () => boolean
+): Promise<R[]> => {
+  const results: R[] = new Array(items.length);
+  let currentIndex = 0;
+  let completedCount = 0;
+  const total = items.length;
+
+  const processNext = async (): Promise<void> => {
+    while (currentIndex < items.length) {
+      if (shouldStop?.()) {
+        console.log('[processConcurrently] Stop signal received');
+        break;
+      }
+
+      const index = currentIndex++;
+      const item = items[index];
+
+      try {
+        const result = await processor(item, index);
+        results[index] = result;
+      } catch (error) {
+        console.error(`[processConcurrently] Error processing item ${index}:`, error);
+        results[index] = null as any;
+      }
+
+      completedCount++;
+      onProgress?.(completedCount, total);
+    }
+  };
+
+  // Start worker promises
+  const workerCount = Math.min(concurrency, items.length);
+  const workers = Array.from({ length: workerCount }, () => processNext());
+
+  await Promise.all(workers);
+
+  return results;
+};
+
+// ==================== STORAGE HELPERS ====================
+
+/**
+ * Gets an item from localStorage with JSON parsing and default value
+ * @param key - Storage key
+ * @param defaultValue - Default value if key not found
+ * @returns Stored value or default
+ */
+export const getStorageItem = <T>(key: string, defaultValue: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    if (item === null || item === undefined) return defaultValue;
+    return JSON.parse(item);
+  } catch (error) {
+    console.warn(`[getStorageItem] Failed to parse ${key}:`, error);
+    return defaultValue;
   }
 };
 
 /**
+ * Sets an item in localStorage with JSON stringification
+ * @param key - Storage key
+ * @param value - Value to store
+ */
+export const setStorageItem = <T>(key: string, value: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`[setStorageItem] Failed to save ${key}:`, error);
+  }
+};
+
+/**
+ * Removes an item from localStorage
+ * @param key - Storage key to remove
+ */
+export const removeStorageItem = (key: string): void => {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error(`[removeStorageItem] Failed to remove ${key}:`, error);
+  }
+};
+
+// ==================== ID GENERATION ====================
+
+/**
+ * Generates a unique ID
+ * @returns Unique ID string
+ */
+export const generateId = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+};
+
+/**
+ * Generates a UUID v4
+ * @returns UUID string
+ */
+export const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// ==================== TEXT UTILITIES ====================
+
+/**
+ * Truncates text to a maximum length with ellipsis
+ * @param text - Text to truncate
+ * @param maxLength - Maximum length
+ * @returns Truncated text
+ */
+export const truncateText = (text: string, maxLength: number): string => {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
+};
+
+/**
  * Escapes special regex characters in a string
+ * @param string - String to escape
+ * @returns Escaped string
  */
 export const escapeRegExp = (string: string): string => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 /**
- * Truncates text to specified length with ellipsis
+ * Converts a string to title case
+ * @param str - String to convert
+ * @returns Title case string
  */
-export const truncateText = (text: string, maxLength: number): string => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
+export const toTitleCase = (str: string): string => {
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 /**
- * Converts string to URL-friendly slug
+ * Converts a string to slug format
+ * @param str - String to convert
+ * @returns Slug string
  */
-export const slugify = (text: string): string => {
-  return text
+export const toSlug = (str: string): string => {
+  return str
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '')
@@ -214,85 +500,25 @@ export const slugify = (text: string): string => {
     .replace(/^-+|-+$/g, '');
 };
 
-// ==================== JSON UTILITIES ====================
-
 /**
- * Parses JSON with AI-powered repair for malformed JSON
+ * Strips HTML tags from a string
+ * @param html - HTML string
+ * @returns Plain text string
  */
-export const parseJsonWithAiRepair = async (
-  jsonString: string,
-  aiRepairer: (brokenJson: string) => Promise<string>
-): Promise<any> => {
-  // Clean common issues
-  let cleaned = jsonString
-    .replace(/```json\n?/g, '')
-    .replace(/```\n?/g, '')
-    .trim();
-  
-  // Try direct parse first
-  try {
-    return JSON.parse(cleaned);
-  } catch (e) {
-    console.warn('[JSON Parse] Initial parse failed, attempting repair...');
-  }
-  
-  // Try to extract JSON from markdown code blocks
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try {
-      return JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      // Continue to AI repair
-    }
-  }
-  
-  // Use AI to repair
-  try {
-    const repairedJson = await aiRepairer(cleaned);
-    const cleanedRepair = repairedJson
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
-    return JSON.parse(cleanedRepair);
-  } catch (e) {
-    console.error('[JSON Parse] AI repair failed:', e);
-    throw new Error('Failed to parse JSON even after AI repair');
-  }
+export const stripHtmlTags = (html: string): string => {
+  return html.replace(/<[^>]*>/g, '');
 };
 
+// ==================== URL UTILITIES ====================
+
 /**
- * Safely parses JSON without throwing
+ * Validates if a string is a valid URL
+ * @param urlString - String to validate
+ * @returns True if valid URL
  */
-export const safeJsonParse = <T>(jsonString: string, defaultValue: T): T => {
+export const isValidUrl = (urlString: string): boolean => {
   try {
-    return JSON.parse(jsonString);
-  } catch {
-    return defaultValue;
-  }
-};
-
-// ==================== VALIDATION UTILITIES ====================
-
-/**
- * Checks if a value is null or undefined
- */
-export const isNullish = (value: any): value is null | undefined => {
-  return value === null || value === undefined;
-};
-
-/**
- * Validates if a string is a valid sort key
- */
-export const isValidSortKey = (key: string, validKeys: string[]): boolean => {
-  return validKeys.includes(key);
-};
-
-/**
- * Validates URL format
- */
-export const isValidUrl = (url: string): boolean => {
-  try {
-    new URL(url);
+    new URL(urlString);
     return true;
   } catch {
     return false;
@@ -300,172 +526,272 @@ export const isValidUrl = (url: string): boolean => {
 };
 
 /**
- * Validates email format
+ * Normalizes a URL by removing trailing slashes and standardizing protocol
+ * @param url - URL to normalize
+ * @returns Normalized URL
  */
-export const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
+export const normalizeUrl = (url: string): string => {
+  let normalized = url.trim();
 
-// ==================== SORTING UTILITIES ====================
+  // Add https if no protocol
+  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    normalized = 'https://' + normalized;
+  }
 
-/**
- * Generic sort function for arrays
- */
-export const sortItems = <T>(
-  items: T[],
-  config: SortConfig,
-  getField: (item: T, key: string) => any
-): T[] => {
-  return [...items].sort((a, b) => {
-    const aVal = getField(a, config.key);
-    const bVal = getField(b, config.key);
-    
-    if (aVal === bVal) return 0;
-    if (aVal === null || aVal === undefined) return 1;
-    if (bVal === null || bVal === undefined) return -1;
-    
-    const comparison = aVal < bVal ? -1 : 1;
-    return config.direction === 'asc' ? comparison : -comparison;
-  });
-};
+  // Remove trailing slash
+  normalized = normalized.replace(/\/+$/, '');
 
-// ==================== DOM UTILITIES ====================
-
-/**
- * Sanitizes HTML content, removing dangerous tags
- */
-export const sanitizeHtml = (html: string): string => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  
-  // Remove script tags
-  doc.querySelectorAll('script').forEach(el => el.remove());
-  
-  // Remove on* attributes
-  doc.querySelectorAll('*').forEach(el => {
-    Array.from(el.attributes).forEach(attr => {
-      if (attr.name.startsWith('on')) {
-        el.removeAttribute(attr.name);
-      }
-    });
-  });
-  
-  return doc.body.innerHTML;
+  return normalized;
 };
 
 /**
- * Extracts plain text from HTML
+ * Extracts the domain from a URL
+ * @param url - URL to extract domain from
+ * @returns Domain string
  */
-export const htmlToText = (html: string): string => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
-};
-
-/**
- * Counts words in text
- */
-export const countWords = (text: string): number => {
-  return text
-    .trim()
-    .split(/\s+/)
-    .filter(word => word.length > 0)
-    .length;
-};
-
-// ==================== STORAGE UTILITIES ====================
-
-/**
- * Safely gets item from localStorage
- */
-export const getStorageItem = <T>(key: string, defaultValue: T): T => {
+export const extractDomain = (url: string): string => {
   try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace('www.', '');
   } catch {
-    return defaultValue;
+    return '';
   }
 };
 
 /**
- * Safely sets item in localStorage
+ * Gets URL parameters as an object
+ * @param url - URL to parse
+ * @returns Object with URL parameters
  */
-export const setStorageItem = (key: string, value: any): void => {
+export const getUrlParams = (url: string): Record<string, string> => {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error(`Failed to save to localStorage (key: ${key}):`, e);
+    const urlObj = new URL(url);
+    const params: Record<string, string> = {};
+    urlObj.searchParams.forEach((value, key) => {
+      params[key] = value;
+    });
+    return params;
+  } catch {
+    return {};
   }
 };
 
+// ==================== DELAY UTILITY ====================
+
 /**
- * Removes item from localStorage
+ * Returns a promise that resolves after a specified delay
+ * @param ms - Delay in milliseconds
+ * @returns Promise that resolves after delay
  */
-export const removeStorageItem = (key: string): void => {
+export const delay = (ms: number): Promise<void> => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
+
+// ==================== DEEP CLONE ====================
+
+/**
+ * Creates a deep clone of an object
+ * @param obj - Object to clone
+ * @returns Cloned object
+ */
+export const deepClone = <T>(obj: T): T => {
+  if (obj === null || typeof obj !== 'object') return obj;
+
   try {
-    localStorage.removeItem(key);
-  } catch (e) {
-    console.error(`Failed to remove from localStorage (key: ${key}):`, e);
+    return JSON.parse(JSON.stringify(obj));
+  } catch {
+    return obj;
   }
+};
+
+// ==================== OBJECT UTILITIES ====================
+
+/**
+ * Checks if an object is empty
+ * @param obj - Object to check
+ * @returns True if empty
+ */
+export const isEmptyObject = (obj: Record<string, any>): boolean => {
+  return Object.keys(obj).length === 0;
+};
+
+/**
+ * Picks specified keys from an object
+ * @param obj - Source object
+ * @param keys - Keys to pick
+ * @returns New object with only picked keys
+ */
+export const pick = <T extends Record<string, any>, K extends keyof T>(
+  obj: T,
+  keys: K[]
+): Pick<T, K> => {
+  const result = {} as Pick<T, K>;
+  keys.forEach(key => {
+    if (key in obj) {
+      result[key] = obj[key];
+    }
+  });
+  return result;
+};
+
+/**
+ * Omits specified keys from an object
+ * @param obj - Source object
+ * @param keys - Keys to omit
+ * @returns New object without omitted keys
+ */
+export const omit = <T extends Record<string, any>, K extends keyof T>(
+  obj: T,
+  keys: K[]
+): Omit<T, K> => {
+  const result = { ...obj };
+  keys.forEach(key => {
+    delete result[key];
+  });
+  return result;
+};
+
+// ==================== ARRAY UTILITIES ====================
+
+/**
+ * Removes duplicate values from an array
+ * @param arr - Array to deduplicate
+ * @returns Array with unique values
+ */
+export const uniqueArray = <T>(arr: T[]): T[] => {
+  return [...new Set(arr)];
+};
+
+/**
+ * Chunks an array into smaller arrays
+ * @param arr - Array to chunk
+ * @param size - Chunk size
+ * @returns Array of chunks
+ */
+export const chunkArray = <T>(arr: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+};
+
+/**
+ * Shuffles an array randomly
+ * @param arr - Array to shuffle
+ * @returns Shuffled array
+ */
+export const shuffleArray = <T>(arr: T[]): T[] => {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 };
 
 // ==================== DATE UTILITIES ====================
 
 /**
- * Formats date to locale string
+ * Formats a date to ISO string (date only)
+ * @param date - Date to format
+ * @returns ISO date string (YYYY-MM-DD)
  */
-export const formatDate = (date: Date | string | number): string => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+export const formatDateISO = (date: Date): string => {
+  return date.toISOString().split('T');
+};
+
+/**
+ * Gets the current year
+ * @returns Current year number
+ */
+export const getCurrentYear = (): number => {
+  return new Date().getFullYear();
 };
 
 /**
  * Calculates days between two dates
+ * @param date1 - First date
+ * @param date2 - Second date
+ * @returns Number of days between dates
  */
 export const daysBetween = (date1: Date, date2: Date): number => {
   const oneDay = 24 * 60 * 60 * 1000;
   return Math.round(Math.abs((date1.getTime() - date2.getTime()) / oneDay));
 };
 
-/**
- * Gets relative time string (e.g., "2 days ago")
- */
-export const getRelativeTime = (date: Date | string | number): string => {
-  const now = new Date();
-  const past = new Date(date);
-  const diffMs = now.getTime() - past.getTime();
-  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-  
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
-};
-
-// ==================== CRYPTO UTILITIES ====================
+// ==================== NUMBER UTILITIES ====================
 
 /**
- * Generates a unique ID
+ * Clamps a number between min and max values
+ * @param num - Number to clamp
+ * @param min - Minimum value
+ * @param max - Maximum value
+ * @returns Clamped number
  */
-export const generateId = (): string => {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 9)}`;
+export const clamp = (num: number, min: number, max: number): number => {
+  return Math.min(Math.max(num, min), max);
 };
 
 /**
- * Simple hash function for strings
+ * Formats a number with thousand separators
+ * @param num - Number to format
+ * @returns Formatted number string
  */
-export const hashString = (str: string): number => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
+export const formatNumber = (num: number): string => {
+  return num.toLocaleString('en-US');
+};
+
+/**
+ * Rounds a number to specified decimal places
+ * @param num - Number to round
+ * @param decimals - Number of decimal places
+ * @returns Rounded number
+ */
+export const roundTo = (num: number, decimals: number): number => {
+  const factor = Math.pow(10, decimals);
+  return Math.round(num * factor) / factor;
+};
+
+// ==================== EXPORTS ====================
+
+export default {
+  callAiWithRetry,
+  debounce,
+  throttle,
+  fetchWordPressWithRetry,
+  extractSlugFromUrl,
+  sanitizeTitle,
+  stripMarkdownCodeBlocks,
+  extractJsonFromResponse,
+  parseJsonWithAiRepair,
+  processConcurrently,
+  getStorageItem,
+  setStorageItem,
+  removeStorageItem,
+  generateId,
+  generateUUID,
+  truncateText,
+  escapeRegExp,
+  toTitleCase,
+  toSlug,
+  stripHtmlTags,
+  isValidUrl,
+  normalizeUrl,
+  extractDomain,
+  getUrlParams,
+  delay,
+  deepClone,
+  isEmptyObject,
+  pick,
+  omit,
+  uniqueArray,
+  chunkArray,
+  shuffleArray,
+  formatDateISO,
+  getCurrentYear,
+  daysBetween,
+  clamp,
+  formatNumber,
+  roundTo,
 };
