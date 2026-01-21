@@ -55,6 +55,37 @@ import {
 import { generateFullSchema } from './schema-generator';
 import { fetchNeuronTerms } from './neuronwriter';
 
+
+// HOTFIX: Clean AI Response helper
+const cleanAIResponse = (response: string, expectedFormat: 'json' | 'html' = 'json'): string => {
+  if (!response || typeof response !== 'string') return response;
+
+  let cleaned = response.trim();
+
+  if (expectedFormat === 'json') {
+    // Remove markdown code blocks
+    const codeBlockMatch = cleaned.match(/^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```$/);
+    if (codeBlockMatch) {
+      cleaned = codeBlockMatch[1].trim();
+    }
+
+    // Handle partial code blocks
+    if (cleaned.startsWith('```json')) {
+      cleaned = cleaned.replace(/^```json\s*/, '');
+    }
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```\s*/, '');
+    }
+    if (cleaned.endsWith('```')) {
+      cleaned = cleaned.replace(/\s*```$/, '');
+    }
+  }
+
+  return cleaned;
+};
+
+
+
 function extractJsonFromResponse(response) {
   if (!response || typeof response !== 'string') {
     throw new Error('Empty response');
