@@ -1,10 +1,10 @@
 // =============================================================================
-// SOTA WP CONTENT OPTIMIZER PRO - CONTENT UTILITIES v14.2
-// CRITICAL FIX: FORCE Natural Internal Links + GUARANTEED References
+// SOTA WP CONTENT OPTIMIZER PRO - CONTENT UTILITIES v15.0
+// ENTERPRISE UPGRADE: Contextual Rich Anchor Text + Zone-Based Distribution
 // =============================================================================
 
 import { TARGET_MIN_WORDS, TARGET_MAX_WORDS, BLOCKED_REFERENCE_DOMAINS, BLOCKED_SPAM_DOMAINS } from './constants';
-
+import { injectEnterpriseInternalLinks } from './InternalLinkOrchestrator';
 // ==================== CUSTOM ERRORS ====================
 
 export class ContentTooShortError extends Error {
@@ -999,6 +999,54 @@ export const extractYouTubeID = (url: string): string | null => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
+
+// ==================== ENTERPRISE CONTEXTUAL LINKING ====================
+// Uses the new ContextualAnchorEngine + InternalLinkOrchestrator system
+
+/**
+ * ENTERPRISE-GRADE Internal Link Injection
+ * Uses contextual 3-7 word anchors with semantic matching and zone-based distribution
+ * 
+ * Features:
+ * - Semantic similarity scoring with n-gram enhancement
+ * - 3-7 word anchor enforcement with quality scoring
+ * - Zone-based distribution (INTRO, EARLY_BODY, MID_BODY, LATE_BODY, FAQ_CONCLUSION)
+ * - 200+ word minimum spacing between links
+ * - Heading duplication avoidance
+ * - Position-aware anchor placement (middle/end preferred)
+ */
+export const injectContextualInternalLinks = (
+  content: string,
+  availablePages: Array<{ title: string; slug: string }>,
+  baseUrl: string,
+  targetLinks: number = 12
+): string => {
+  console.log('[Enterprise Linking] Starting contextual link injection...');
+  console.log(`[Enterprise Linking] Target: ${targetLinks} links, Available pages: ${availablePages.length}`);
+
+  if (availablePages.length === 0) {
+    console.log('[Enterprise Linking] No pages available for linking');
+    return content;
+  }
+
+  try {
+    // Use the enterprise orchestrator for intelligent link distribution
+    const result = injectEnterpriseInternalLinks(
+      content,
+      availablePages,
+      baseUrl,
+      targetLinks
+    );
+
+    console.log('[Enterprise Linking] Successfully injected contextual links');
+    return result;
+  } catch (error) {
+    console.error('[Enterprise Linking] Error during injection:', error);
+    // Fallback to legacy system if enterprise system fails
+    console.log('[Enterprise Linking] Falling back to legacy forceNaturalInternalLinks');
+    return forceNaturalInternalLinks(content, availablePages, baseUrl, targetLinks);
+  }
+};
 // ==================== EXPORTS ====================
 
 export default {
@@ -1023,5 +1071,6 @@ export default {
   extractImagesFromHtml,
   injectImagesIntoContent,
   generateComparisonTableHtml,
+  injectContextualInternalLinks,
   escapeRegExp,
 };
