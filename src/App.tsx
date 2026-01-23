@@ -436,10 +436,11 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // ==================== GOD MODE INTEGRATION ====================
+// ==================== GOD MODE INTEGRATION ====================
 
-  // Setup God Mode log callback
-  useEffect(() => {
+// Setup God Mode log callback
+useEffect(() => {
+  if (maintenanceEngine && typeof maintenanceEngine.logCallback !== 'undefined') {
     maintenanceEngine.logCallback = (msg: string) => {
       console.log(msg);
       
@@ -456,50 +457,65 @@ const App: React.FC = () => {
         setGodModeLogs(prev => [msg, ...prev].slice(0, 100));
       }
     };
-  }, []);
+  }
+}, []);
 
-  // Manage God Mode lifecycle
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.GOD_MODE, String(isGodMode));
+// Manage God Mode lifecycle - WITH SAFETY CHECKS
+useEffect(() => {
+  localStorage.setItem(STORAGE_KEYS.GOD_MODE, String(isGodMode));
 
-    const context: GenerationContext = {
-      dispatch,
-      existingPages,
-      siteInfo,
-      wpConfig,
-      geoTargeting,
-      serperApiKey: apiKeys.serperApiKey,
-      apiKeyStatus,
-      apiClients,
-      selectedModel,
-      openrouterModels,
-      selectedGroqModel,
-      neuronConfig,
-      excludedUrls,
-      excludedCategories,
-      priorityUrls,
-      priorityOnlyMode
-    };
+  const context: GenerationContext = {
+    dispatch,
+    existingPages,
+    siteInfo,
+    wpConfig,
+    geoTargeting,
+    serperApiKey: apiKeys.serperApiKey,
+    apiKeyStatus,
+    apiClients,
+    selectedModel,
+    openrouterModels,
+    selectedGroqModel,
+    neuronConfig,
+    excludedUrls,
+    excludedCategories,
+    priorityUrls,
+    priorityOnlyMode
+  };
 
+  // ✅ CRITICAL FIX: Add null/undefined checks before calling methods
+  try {
     if (isGodMode) {
-      maintenanceEngine.start(context);
+      if (maintenanceEngine && typeof maintenanceEngine.start === 'function') {
+        maintenanceEngine.start(context);
+      } else {
+        console.warn('[App] maintenanceEngine.start is not available');
+      }
     } else {
-      maintenanceEngine.stop();
+      if (maintenanceEngine && typeof maintenanceEngine.stop === 'function') {
+        maintenanceEngine.stop();
+      }
     }
 
     // Update context when dependencies change
     if (isGodMode && existingPages.length > 0) {
-      maintenanceEngine.updateContext(context);
+      if (maintenanceEngine && typeof maintenanceEngine.updateContext === 'function') {
+        maintenanceEngine.updateContext(context);
+      }
     }
-  }, [
-    isGodMode, 
-    existingPages, 
-    apiClients, 
-    excludedUrls, 
-    excludedCategories,
-    priorityUrls,
-    priorityOnlyMode
-  ]);
+  } catch (error) {
+    console.error('[App] God Mode lifecycle error:', error);
+  }
+}, [
+  isGodMode, 
+  existingPages, 
+  apiClients, 
+  excludedUrls, 
+  excludedCategories,
+  priorityUrls,
+  priorityOnlyMode
+]);
+
 
   // ==================== NEURONWRITER INTEGRATION ====================
 
