@@ -128,6 +128,42 @@ const DESCRIPTIVE_VERBS = new Set([
   'understanding', 'leveraging', 'scaling', 'automating', 'streamlining',
 ]);
 
+// ==================== EXPORTED VALIDATION FUNCTION ====================
+
+export const validateAnchorText = (
+  anchor: string,
+  config: UltraAnchorConfig = ULTRA_CONFIG
+): { valid: boolean; reason: string } => {
+  const words = anchor.trim().split(/\s+/).filter(w => w.length > 0);
+  
+  if (words.length < config.minWords) {
+    return { valid: false, reason: `Too short: ${words.length} words, need ${config.minWords}+` };
+  }
+  if (words.length > config.maxWords) {
+    return { valid: false, reason: `Too long: ${words.length} words, max ${config.maxWords}` };
+  }
+  
+  const anchorLower = anchor.toLowerCase();
+  for (const toxic of TOXIC_GENERIC_ANCHORS) {
+    if (anchorLower.includes(toxic)) {
+      return { valid: false, reason: `Contains generic phrase: "${toxic}"` };
+    }
+  }
+  
+  const firstWord = words[0].toLowerCase();
+  const lastWord = words[words.length - 1].toLowerCase();
+  if (BOUNDARY_STOPWORDS.has(firstWord)) {
+    return { valid: false, reason: `Cannot start with: "${firstWord}"` };
+  }
+  if (BOUNDARY_STOPWORDS.has(lastWord)) {
+    return { valid: false, reason: `Cannot end with: "${lastWord}"` };
+  }
+  
+  return { valid: true, reason: 'OK' };
+};
+
+// ==================== INTERNAL HELPER FUNCTIONS ====================
+
 const extractSemanticEntities = (text: string): SemanticEntity[] => {
   const entities: SemanticEntity[] = [];
   const topicPatterns = [
@@ -172,9 +208,9 @@ const calculateNaturalnessScore = (anchor: string, sentence: string): number => 
   else if (words.length < 3) score -= 20;
   const firstWord = words[0]?.toLowerCase();
   const lastWord = words[words.length - 1]?.toLowerCase();
-  if (!BOUNDARY_STOPWORDS.has(firstWord)) score += 10; else score -= 15;
-  if (!BOUNDARY_STOPWORDS.has(lastWord)) score += 8; else score -= 10;
-  if (DESCRIPTIVE_VERBS.has(firstWord)) score += 12;
+  if (firstWord && !BOUNDARY_STOPWORDS.has(firstWord)) score += 10; else score -= 15;
+  if (lastWord && !BOUNDARY_STOPWORDS.has(lastWord)) score += 8; else score -= 10;
+  if (firstWord && DESCRIPTIVE_VERBS.has(firstWord)) score += 12;
   return Math.max(0, Math.min(100, score));
 };
 
@@ -218,6 +254,8 @@ const extractUltraAnchorCandidates = (paragraph: string, targetPage: PageContext
       const phrase = phraseWords.join(' ');
       const cleanPhrase = phrase.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '').trim();
       if (cleanPhrase.length < 12) continue;
+      const validation = validateAnchorText(cleanPhrase, config);
+      if (!validation.valid) continue;
       const containingSentence = sentences.find(s => s.toLowerCase().includes(cleanPhrase.toLowerCase())) || text;
       const semanticScore = calculateDeepSemanticScore(cleanPhrase, targetPage, text);
       const naturalScore = calculateNaturalnessScore(cleanPhrase, containingSentence);
@@ -243,21 +281,33 @@ const extractUltraAnchorCandidates = (paragraph: string, targetPage: PageContext
   return candidates.filter(c => { const key = c.normalizedText.replace(/[^a-z0-9]/g, ''); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 15);
 };
 
+// ==================== MAIN ENGINE CLASS ====================
+
 export class UltraPremiumAnchorEngineV2 {
   private config: UltraAnchorConfig;
   private usedAnchors: Set<string>;
   private usedTargets: Set<string>;
   private injectionHistory: AnchorInjectionResult[];
+  
   constructor(config: Partial<UltraAnchorConfig> = {}) {
     this.config = { ...ULTRA_CONFIG, ...config };
     this.usedAnchors = new Set();
     this.usedTargets = new Set();
     this.injectionHistory = [];
   }
-  reset(): void { this.usedAnchors.clear(); this.usedTargets.clear(); this.injectionHistory = []; }
+  
+  reset(): void {
+    this.usedAnchors.clear();
+    this.usedTargets.clear();
+    this.injectionHistory = [];
+  }
+  
   findBestAnchor(paragraph: string, targetPage: PageContext, nearbyHeading?: string): UltraAnchorCandidate | null {
     const candidates = extractUltraAnchorCandidates(paragraph, targetPage, this.config);
-    const available = candidates.filter(c => { const key = c.normalizedText.replace(/[^a-z0-9]/g, ''); return !this.usedAnchors.has(key); });
+    const available = candidates.filter(c => {
+      const key = c.normalizedText.replace(/[^a-z0-9]/g, '');
+      return !this.usedAnchors.has(key);
+    });
     if (available.length === 0) return null;
     if (nearbyHeading && this.config.maxOverlapWithHeading < 1) {
       const headingWords = new Set(nearbyHeading.toLowerCase().split(/\s+/).filter(w => w.length > 3));
@@ -270,21 +320,38 @@ export class UltraPremiumAnchorEngineV2 {
     }
     return available[0];
   }
+  
   injectLink(html: string, anchor: string, targetUrl: string): { html: string; result: AnchorInjectionResult } {
     const escapedAnchor = escapeRegExp(anchor);
     const regex = new RegExp(`(>[^<]*?)\\b(${escapedAnchor})\\b(?![^<]*<\\/a>)`, 'i');
-    let injected = false; let position = -1;
+    let injected = false;
+    let position = -1;
     const newHtml = html.replace(regex, (match, prefix, text, offset) => {
-      if (injected) return match; injected = true; position = offset;
+      if (injected) return match;
+      injected = true;
+      position = offset;
       return `${prefix}<a href="${targetUrl}">${text}</a>`;
     });
-    const result: AnchorInjectionResult = { success: injected, anchor, targetUrl,
+    const result: AnchorInjectionResult = {
+      success: injected, anchor, targetUrl,
       qualityMetrics: { overall: 85, semantic: 80, contextual: 85, natural: 90, seo: 85 },
-      position, reasoning: injected ? `Injected "${anchor}"` : `Failed for "${anchor}"` };
-    if (injected) { this.usedAnchors.add(anchor.toLowerCase().replace(/[^a-z0-9]/g, '')); this.injectionHistory.push(result); }
+      position, reasoning: injected ? `Injected "${anchor}"` : `Failed for "${anchor}"`
+    };
+    if (injected) {
+      this.usedAnchors.add(anchor.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      this.injectionHistory.push(result);
+    }
     return { html: newHtml, result };
   }
-  getStats() { return { totalInjections: this.injectionHistory.length, uniqueAnchors: this.usedAnchors.size, uniqueTargets: this.usedTargets.size, history: this.injectionHistory }; }
+  
+  getStats() {
+    return {
+      totalInjections: this.injectionHistory.length,
+      uniqueAnchors: this.usedAnchors.size,
+      uniqueTargets: this.usedTargets.size,
+      history: this.injectionHistory
+    };
+  }
 }
 
 export default UltraPremiumAnchorEngineV2;
