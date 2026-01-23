@@ -1617,8 +1617,6 @@ export const generateContent = async (
   return generateFullContent(apiKeys, topic, existingPages, wpConfig, options, onProgress);
 };
 
-export const generateContent = generateFullContent;
-
 // ==================== UPDATE THE DEFAULT EXPORT ====================
 // Make sure to add these to the default export object:
 
