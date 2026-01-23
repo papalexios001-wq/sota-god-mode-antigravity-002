@@ -1,5 +1,6 @@
 // =============================================================================
-// SOTA SERVICES V12.0 - ENTERPRISE GRADE CONTENT GENERATION ENGINE
+// SOTA SERVICES V12.1 - ENTERPRISE GRADE CONTENT GENERATION ENGINE
+// CRITICAL FIX: t?.slice(...).join is not a function
 // Complete AI Integration, WordPress Publishing, God Mode Maintenance Engine
 // =============================================================================
 
@@ -34,7 +35,7 @@ import {
 } from './contentUtils';
 
 
-console.log('[SOTA Services] Enterprise Engine v12.0 Initialized');
+console.log('[SOTA Services] Enterprise Engine v12.1 Initialized - CRITICAL FIX APPLIED');
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -61,6 +62,90 @@ interface ReferenceLink {
   source: string;
   description?: string;
 }
+
+// =============================================================================
+// CRITICAL FIX: ARRAY TYPE SAFETY UTILITIES
+// =============================================================================
+
+/**
+ * ENTERPRISE-GRADE ARRAY COERCION
+ * Ensures the input is ALWAYS a proper array, regardless of input type.
+ * This fixes the "t?.slice(...).join is not a function" error.
+ * 
+ * @param value - Any value that should be an array
+ * @param fallback - Default array if coercion fails
+ * @returns Always returns a proper array
+ */
+const ensureArray = <T>(value: unknown, fallback: T[] = []): T[] => {
+  // Already an array - return as-is
+  if (Array.isArray(value)) {
+    return value;
+  }
+  
+  // Null or undefined - return fallback
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  
+  // String - split by common delimiters or wrap in array
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    
+    // Check for JSON array
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        // Not valid JSON, continue with string handling
+      }
+    }
+    
+    // Check for comma-separated values
+    if (trimmed.includes(',')) {
+      return trimmed.split(',').map(s => s.trim()).filter(Boolean) as T[];
+    }
+    
+    // Single string - wrap in array
+    return [trimmed] as T[];
+  }
+  
+  // Object with length (array-like) - convert to array
+  if (typeof value === 'object' && value !== null && 'length' in value) {
+    try {
+      return Array.from(value as ArrayLike<T>);
+    } catch (e) {
+      return fallback;
+    }
+  }
+  
+  // Any other value - wrap in array
+  return [value] as T[];
+};
+
+/**
+ * Safe join operation that works even if input is not an array
+ * @param value - Value to join (will be coerced to array if needed)
+ * @param separator - Join separator
+ * @returns Joined string
+ */
+const safeJoin = (value: unknown, separator: string = ', '): string => {
+  const arr = ensureArray<string>(value, []);
+  return arr.filter(Boolean).join(separator);
+};
+
+/**
+ * Safe slice operation that works even if input is not an array
+ * @param value - Value to slice (will be coerced to array if needed)
+ * @param start - Start index
+ * @param end - End index
+ * @returns Sliced array
+ */
+const safeSlice = <T>(value: unknown, start?: number, end?: number): T[] => {
+  const arr = ensureArray<T>(value, []);
+  return arr.slice(start, end);
+};
 
 // =============================================================================
 // UTILITY FUNCTIONS
@@ -492,6 +577,10 @@ export const callGroqAPI = async (
 // CONTENT GENERATION HELPER FUNCTIONS
 // =============================================================================
 
+/**
+ * CRITICAL FIX: This function now ALWAYS returns a proper string array
+ * Previously it could return a string, causing .slice().join() to fail
+ */
 export const generateSemanticKeywords = async (
   apiClients: ApiClients,
   selectedModel: string,
@@ -499,6 +588,9 @@ export const generateSemanticKeywords = async (
   geoLocation?: string
 ): Promise<string[]> => {
   console.log('[generateSemanticKeywords] Generating keywords for:', topic);
+  
+  // CRITICAL: Ensure we always have a valid fallback array
+  const fallbackKeywords: string[] = [topic].filter(Boolean);
   
   try {
     const response = await callAI(
@@ -513,10 +605,28 @@ export const generateSemanticKeywords = async (
     );
     
     const data = JSON.parse(response);
-    return data.keywords || data.semanticKeywords || [topic];
+    
+    // CRITICAL FIX: Use ensureArray to guarantee we always return an array
+    // This prevents the "t?.slice(...).join is not a function" error
+    const rawKeywords = data.keywords || data.semanticKeywords || data.keyword_list || data;
+    const keywords = ensureArray<string>(rawKeywords, fallbackKeywords);
+    
+    // Filter out any non-string values and empty strings
+    const validKeywords = keywords
+      .filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
+      .map(k => k.trim());
+    
+    // Ensure we always return at least the topic as a keyword
+    if (validKeywords.length === 0) {
+      console.warn('[generateSemanticKeywords] No valid keywords found, using fallback');
+      return fallbackKeywords;
+    }
+    
+    console.log(`[generateSemanticKeywords] Successfully generated ${validKeywords.length} keywords`);
+    return validKeywords;
   } catch (error: any) {
     console.error('[generateSemanticKeywords] Error:', error.message);
-    return [topic];
+    return fallbackKeywords;
   }
 };
 
@@ -536,7 +646,7 @@ export const generateContentStrategy = async (
       [],
       '',
       'content_strategy',
-      [topic, existingContent.join('\n')],
+      [topic, safeJoin(existingContent, '\n')],
       'json'
     );
     
@@ -563,12 +673,12 @@ export const performGapAnalysis = async (
       [],
       '',
       'gap_analysis',
-      [targetKeyword, existingTopics.join('\n- ')],
+      [targetKeyword, safeJoin(existingTopics, '\n- ')],
       'json'
     );
     
     const data = JSON.parse(response);
-    return data.gaps || data.suggestions || [];
+    return ensureArray(data.gaps || data.suggestions, []);
   } catch (error: any) {
     console.error('[performGapAnalysis] Error:', error.message);
     return [];
@@ -632,7 +742,7 @@ export const generateFaqSection = async (
     );
     
     const data = JSON.parse(response);
-    return data.faqs || data.questions || [];
+    return ensureArray(data.faqs || data.questions, []);
   } catch (error: any) {
     console.error('[generateFaqSection] Error:', error.message);
     return [];
@@ -660,7 +770,7 @@ export const generateKeyTakeaways = async (
     );
     
     const data = JSON.parse(response);
-    return data.takeaways || data.keyTakeaways || [];
+    return ensureArray<string>(data.takeaways || data.keyTakeaways, []);
   } catch (error: any) {
     console.error('[generateKeyTakeaways] Error:', error.message);
     return [];
@@ -677,6 +787,9 @@ export const generateArticleContent = async (
   console.log('[generateArticleContent] Generating article:', title);
   
   try {
+    // CRITICAL: Ensure semanticKeywords is always an array before joining
+    const safeKeywords = ensureArray<string>(semanticKeywords, [title]);
+    
     const response = await callAI(
       apiClients,
       selectedModel,
@@ -684,7 +797,7 @@ export const generateArticleContent = async (
       [],
       '',
       'ultra_sota_article_writer',
-      [title, semanticKeywords.join(', '), JSON.stringify(outline), '', null, null],
+      [title, safeJoin(safeKeywords), JSON.stringify(outline), '', null, null],
       'html'
     );
     
@@ -706,7 +819,7 @@ export const generateFullContent = async (
 ): Promise<GeneratedContent> => {
   console.log('[generateFullContent] Full generation for:', item.title);
   
-  // Generate semantic keywords
+  // Generate semantic keywords - ALWAYS returns array now
   const semanticKeywords = await generateSemanticKeywords(
     apiClients,
     selectedModel,
@@ -724,7 +837,7 @@ export const generateFullContent = async (
       [],
       '',
       'content_outline',
-      [item.title, semanticKeywords.join(', '), item.type],
+      [item.title, safeJoin(semanticKeywords), item.type],
       'json'
     );
     outline = JSON.parse(outlineResponse);
@@ -733,7 +846,8 @@ export const generateFullContent = async (
   }
   
   // Generate main content
-  const internalPagesContext = existingPages
+  const safeExistingPages = ensureArray(existingPages, []);
+  const internalPagesContext = safeExistingPages
     .slice(0, 30)
     .map(p => `- ${p.title} (/${extractSlugFromUrl(p.id)}/)`);
   
@@ -744,14 +858,14 @@ export const generateFullContent = async (
     [],
     '',
     'ultra_sota_article_writer',
-    [item.title, semanticKeywords.join(', '), JSON.stringify(outline || {}), internalPagesContext.join('\n'), null, null],
+    [item.title, safeJoin(semanticKeywords), JSON.stringify(outline || {}), safeJoin(internalPagesContext, '\n'), null, null],
     'html'
   );
   
   let htmlContent = sanitizeHtml(contentResponse);
   
   // Process internal links
-  htmlContent = processInternalLinks(htmlContent, existingPages, wpUrl);
+  htmlContent = processInternalLinks(htmlContent, safeExistingPages, wpUrl);
   
   // Add references if serper key available
   if (serperApiKey) {
@@ -759,9 +873,10 @@ export const generateFullContent = async (
     if (refs) htmlContent += refs;
   }
   
-  // Generate meta description
+  // Generate meta description - CRITICAL: use safeSlice and safeJoin
   let metaDescription = '';
   try {
+    const metaKeywords = safeSlice<string>(semanticKeywords, 0, 3);
     const metaResponse = await callAI(
       apiClients,
       selectedModel,
@@ -769,7 +884,7 @@ export const generateFullContent = async (
       [],
       '',
       'meta_description',
-      [item.title, semanticKeywords.slice(0, 3).join(', ')],
+      [item.title, safeJoin(metaKeywords)],
       'text'
     );
     metaDescription = metaResponse.replace(/"/g, '').trim().substring(0, 160);
@@ -837,7 +952,7 @@ export const fetchVerifiedReferences = async (
     });
 
     const data = await response.json();
-    const potentialLinks = data.organic || [];
+    const potentialLinks = ensureArray(data.organic, []);
     const validatedLinks: ReferenceLink[] = [];
 
     for (const link of potentialLinks) {
@@ -1221,7 +1336,7 @@ export const getSerpResults = async (
     });
     
     const data = await response.json();
-    return data.organic || [];
+    return ensureArray(data.organic, []);
   } catch (error: any) {
     console.error('[getSerpResults] Error:', error.message);
     return [];
@@ -1293,7 +1408,8 @@ export const godModeOptimize = async (
     }
     
     // Process internal links
-    const optimizedContent = processInternalLinks(content, existingPages, wpConfig.url);
+    const safeExistingPages = ensureArray(existingPages, []);
+    const optimizedContent = processInternalLinks(content, safeExistingPages, wpConfig.url);
     
     return { success: true, message: 'Optimization complete' };
   } catch (error: any) {
@@ -1321,7 +1437,7 @@ export const godModeStructuralGuardian = async (
   if (!hasFAQ && requirements.requireFAQ) warnings.push('Missing FAQ section');
   if (!hasKeyTakeaways && requirements.requireKeyTakeaways) warnings.push('Missing Key Takeaways');
   
-  return warnings.length > 0 ? warnings.join('; ') : 'Structure OK';
+  return warnings.length > 0 ? safeJoin(warnings, '; ') : 'Structure OK';
 };
 
 // =============================================================================
@@ -1344,7 +1460,7 @@ export const generateClusterPlan = async (
       [],
       '',
       'cluster_planner',
-      [mainTopic, existingContent.join('\n')],
+      [mainTopic, safeJoin(existingContent, '\n')],
       'json'
     );
     
@@ -1447,12 +1563,13 @@ const analyzePages = async (
   onProgress?: (progress: { current: number; total: number }) => void,
   shouldStop?: () => boolean
 ): Promise<void> => {
-  const total = pagesToAnalyze.length;
+  const safePages = ensureArray(pagesToAnalyze, []);
+  const total = safePages.length;
 
   for (let i = 0; i < total; i++) {
     if (shouldStop && shouldStop()) break;
 
-    const page = pagesToAnalyze[i];
+    const page = safePages[i];
     if (onProgress) onProgress({ current: i + 1, total });
 
     setExistingPages(prev => prev.map(p =>
@@ -1489,7 +1606,7 @@ const analyzePages = async (
           healthScore: analysisResult.healthScore,
           updatePriority: analysisResult.updatePriority,
           wordCount: analysisResult.wordCount,
-          justification: analysisResult.issues?.join('; ') || 'Analysis complete',
+          justification: safeJoin(analysisResult.issues, '; ') || 'Analysis complete',
           analysis: analysisResult,
         } : p
       ));
@@ -1509,12 +1626,13 @@ const analyzeContentGaps = async (
   callAIService: (promptKey: string, args: any[], format?: 'json' | 'html', grounding?: boolean) => Promise<string>,
   context: GenerationContext
 ): Promise<any[]> => {
-  const existingTitles = existingPages.map(p => p.title).filter(Boolean).slice(0, 50);
+  const safePages = ensureArray(existingPages, []);
+  const existingTitles = safePages.map(p => p.title).filter(Boolean).slice(0, 50);
 
   try {
-    const responseText = await callAIService('gap_analysis', [topic, existingTitles.join('\n- ')], 'json');
+    const responseText = await callAIService('gap_analysis', [topic, safeJoin(existingTitles, '\n- ')], 'json');
     const parsed = JSON.parse(responseText);
-    return parsed.suggestions || parsed.gaps || [];
+    return ensureArray(parsed.suggestions || parsed.gaps, []);
   } catch (error: any) {
     console.error('[analyzeContentGaps] Error:', error.message);
     return [];
@@ -1530,31 +1648,53 @@ const generateItems = async (
   stopRef: React.MutableRefObject<Set<string>>
 ): Promise<void> => {
   const { dispatch, existingPages, wpConfig, geoTargeting, serperApiKey } = context;
+  const safeItems = ensureArray(items, []);
+  const safeExistingPages = ensureArray(existingPages, []);
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  for (let i = 0; i < safeItems.length; i++) {
+    const item = safeItems[i];
     if (stopRef.current.has(item.id)) continue;
 
-    onProgress({ current: i + 1, total: items.length });
+    onProgress({ current: i + 1, total: safeItems.length });
     dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'generating', statusText: 'Starting...' } });
 
     try {
+      // CRITICAL FIX: Initialize as array with proper fallback
       let semanticKeywords: string[] = [item.title];
+      
       try {
         const kwRes = await callAIService('semantic_keywords', [item.title, geoTargeting.location || null], 'json');
-        semanticKeywords = JSON.parse(kwRes).keywords || [item.title];
-      } catch (e) {}
+        const parsed = JSON.parse(kwRes);
+        
+        // CRITICAL: Use ensureArray to guarantee array type
+        const rawKeywords = parsed.keywords || parsed.semanticKeywords || parsed;
+        semanticKeywords = ensureArray<string>(rawKeywords, [item.title]);
+        
+        // Filter and validate
+        semanticKeywords = semanticKeywords
+          .filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
+          .map(k => k.trim());
+        
+        if (semanticKeywords.length === 0) {
+          semanticKeywords = [item.title];
+        }
+      } catch (e) {
+        console.warn('[generateItems] Keyword generation failed, using fallback');
+        semanticKeywords = [item.title];
+      }
 
-      const internalPagesContext = existingPages.slice(0, 30).map(p => `- ${p.title} (/${extractSlugFromUrl(p.id)}/)`);
+      const internalPagesContext = safeExistingPages
+        .slice(0, 30)
+        .map(p => `- ${p.title} (/${extractSlugFromUrl(p.id)}/)`);
 
       const contentResponse = await callAIService(
         'ultra_sota_article_writer',
-        [item.title, semanticKeywords.join(', '), '{}', internalPagesContext.join('\n'), null, null],
+        [item.title, safeJoin(semanticKeywords), '{}', safeJoin(internalPagesContext, '\n'), null, null],
         'html'
       );
 
       let htmlContent = sanitizeHtml(contentResponse);
-      htmlContent = processInternalLinks(htmlContent, existingPages, wpConfig.url);
+      htmlContent = processInternalLinks(htmlContent, safeExistingPages, wpConfig.url);
 
       if (serperApiKey) {
         const refs = await fetchVerifiedReferences(item.title, serperApiKey, wpConfig.url, semanticKeywords);
@@ -1563,7 +1703,9 @@ const generateItems = async (
 
       let metaDescription = `Learn about ${item.title}. Expert guide.`;
       try {
-        metaDescription = (await callAIService('meta_description', [item.title, semanticKeywords.slice(0, 3).join(', ')], 'text')).substring(0, 160);
+        // CRITICAL FIX: Use safeSlice and safeJoin
+        const metaKeywords = safeSlice<string>(semanticKeywords, 0, 3);
+        metaDescription = (await callAIService('meta_description', [item.title, safeJoin(metaKeywords)], 'text')).substring(0, 160);
       } catch (e) {}
 
       const wordCount = htmlContent.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(w => w.length > 0).length;
@@ -1603,6 +1745,7 @@ const refreshItem = async (
   aiRepairer: (brokenJson: string) => Promise<string>
 ): Promise<void> => {
   const { dispatch, existingPages, wpConfig, serperApiKey } = context;
+  const safeExistingPages = ensureArray(existingPages, []);
 
   try {
     let existingContent = item.crawledContent || (item.originalUrl ? await smartCrawl(item.originalUrl) : '');
@@ -1614,7 +1757,7 @@ const refreshItem = async (
     const titleMatch = existingContent.match(/<h1[^>]*>(.*?)<\/h1>/i);
     const pageTitle = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : item.title;
 
-    let optimizedContent = processInternalLinks(existingContent, existingPages, wpConfig.url);
+    let optimizedContent = processInternalLinks(existingContent, safeExistingPages, wpConfig.url);
 
     if (serperApiKey) {
       optimizedContent = optimizedContent.replace(/<div[^>]*class="[^"]*references[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
@@ -1743,4 +1886,8 @@ export default {
   fetchNeuronwriterData,
   maintenanceEngine,
   generateImageWithFallback,
+  // Export utility functions for external use
+  ensureArray,
+  safeJoin,
+  safeSlice,
 };
