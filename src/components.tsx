@@ -7,6 +7,29 @@ import { MIN_INTERNAL_LINKS, TARGET_MAX_WORDS, TARGET_MIN_WORDS } from './consta
 import { callAI } from './services';
 import ReactQuill from 'react-quill';
 
+// =============================================================================
+// CRITICAL FIX: Runtime Array Safety Utility
+// This ensures arrays are ALWAYS valid before calling .slice(), .join(), etc.
+// =============================================================================
+
+const ensureArraySafe = <T,>(value: unknown, fallback: T[] = []): T[] => {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    if (trimmed.includes(',')) return trimmed.split(',').map(s => s.trim()).filter(Boolean) as T[];
+    return [trimmed] as T[];
+  }
+  return [value] as T[];
+};
+
 export const CheckIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
 );
@@ -125,7 +148,11 @@ export const RankGuardian = memo(({ item, editedSeo, editedContent, onSeoChange,
     if (!item.generatedContent) return <div className="guardian-card"><h4>No Analysis Data</h4></div>;
 
     const { title, metaDescription, slug } = editedSeo;
-    const { primaryKeyword = '', semanticKeywords = [], serpData } = item.generatedContent;
+    
+    // CRITICAL FIX: Use ensureArraySafe to prevent "t?.slice(...).join is not a function" error
+    const primaryKeyword = item.generatedContent.primaryKeyword || '';
+    const semanticKeywords = ensureArraySafe<string>(item.generatedContent.semanticKeywords, []);
+    const serpData = ensureArraySafe(item.generatedContent.serpData, []);
 
     const analysis = useMemo(() => {
         const tempDiv = document.createElement('div');
@@ -396,11 +423,13 @@ export const ReviewModal = ({ item, onClose, onSaveChanges, wpConfig, wpPassword
         if (!item.generatedContent) return;
         setIsRegenerating(prev => ({ ...prev, [field]: true }));
         try {
-            const { primaryKeyword, strategy, serpData } = item.generatedContent;
+            const { primaryKeyword, strategy } = item.generatedContent;
+            // CRITICAL FIX: Ensure serpData is always an array
+            const serpData = ensureArraySafe(item.generatedContent.serpData, []);
             const summary = editedContent.replace(/<[^>]+>/g, ' ').substring(0, 500);
-            const competitorTitles = (serpData || []).map((d: any) => d.title).slice(0, 5);
+            const competitorTitles = serpData.map((d: any) => d.title).slice(0, 5);
             const location = geoTargeting.enabled ? geoTargeting.location : null;
-            const responseText = await callAI('seo_metadata_generator', [primaryKeyword, summary, strategy.targetAudience, competitorTitles, location], 'json');
+            const responseText = await callAI('seo_metadata_generator', [primaryKeyword, summary, strategy?.targetAudience, competitorTitles, location], 'json');
             const aiRepairer = (brokenText: string) => callAI('json_repair', [brokenText], 'json');
             const { seoTitle, metaDescription } = await parseJsonWithAiRepair(responseText, aiRepairer);
             if (field === 'title' && seoTitle) setEditedSeo(prev => ({ ...prev, title: seoTitle }));
@@ -458,6 +487,9 @@ export const ReviewModal = ({ item, onClose, onSaveChanges, wpConfig, wpPassword
         };
     }, [item.generatedContent?.neuronAnalysis, editedContent, neuronTermFilter]);
 
+    // CRITICAL FIX: Ensure imageDetails is always an array
+    const imageDetails = ensureArraySafe(item.generatedContent?.imageDetails, []);
+
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -499,10 +531,10 @@ export const ReviewModal = ({ item, onClose, onSaveChanges, wpConfig, wpPassword
                     {activeTab === 'Assets' && (
                         <div className="assets-tab-container" style={{padding: '2rem', overflowY: 'auto', height: '100%', background: '#050507'}}>
                             <div className="image-assets-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem'}}>
-                                {item.generatedContent.imageDetails.map((image, index) => (
-                                    image.generatedImageSrc && <div key={index} className="image-asset-card">
-                                        <img src={image.generatedImageSrc} alt={image.altText} style={{width: '100%', height: '200px', objectFit: 'cover'}} />
-                                        <div style={{padding: '1rem'}}><p style={{color: '#94A3B8', fontSize: '0.8rem'}}>{image.prompt}</p></div>
+                                {imageDetails.map((image: any, index: number) => (
+                                    image?.generatedImageSrc && <div key={index} className="image-asset-card">
+                                        <img src={image.generatedImageSrc} alt={image.altText || ''} style={{width: '100%', height: '200px', objectFit: 'cover'}} />
+                                        <div style={{padding: '1rem'}}><p style={{color: '#94A3B8', fontSize: '0.8rem'}}>{image.prompt || ''}</p></div>
                                     </div>
                                 ))}
                             </div>
@@ -598,15 +630,17 @@ export const AppFooter = memo(() => (
 export const BulkPublishModal = ({ items, onClose, publishItem, wpConfig, wpPassword, onPublishSuccess }: any) => {
     const [isPublishing, setIsPublishing] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
-    const [progress, setProgress] = useState({ current: 0, total: items.length });
+    // CRITICAL FIX: Ensure items is always an array
+    const safeItems = ensureArraySafe(items, []);
+    const [progress, setProgress] = useState({ current: 0, total: safeItems.length });
 
     const startPublishing = async () => {
         setIsPublishing(true);
         setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Starting bulk publish operation...`]);
         let successCount = 0;
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            setProgress({ current: i + 1, total: items.length });
+        for (let i = 0; i < safeItems.length; i++) {
+            const item = safeItems[i];
+            setProgress({ current: i + 1, total: safeItems.length });
             setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Publishing: ${item.title}...`]);
             try {
                 const status = 'publish'; 
@@ -623,7 +657,7 @@ export const BulkPublishModal = ({ items, onClose, publishItem, wpConfig, wpPass
             }
             await new Promise(r => setTimeout(r, 500));
         }
-        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Batch Complete. Successfully published ${successCount}/${items.length} items.`]);
+        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Batch Complete. Successfully published ${successCount}/${safeItems.length} items.`]);
         setIsPublishing(false);
     };
 
@@ -637,7 +671,7 @@ export const BulkPublishModal = ({ items, onClose, publishItem, wpConfig, wpPass
                 <div style={{marginBottom: '1.5rem', flex: 1, minHeight: '300px', overflowY: 'auto', background: '#020617', padding: '1.5rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '0.85rem', color: '#E2E8F0', border: '1px solid #1E293B', boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.3)'}}>
                     {logs.length === 0 ? (
                         <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748B'}}>
-                            <p style={{marginBottom: '1rem'}}>Ready to publish {items.length} items to:</p>
+                            <p style={{marginBottom: '1rem'}}>Ready to publish {safeItems.length} items to:</p>
                             <div style={{background: '#1E293B', padding: '0.5rem 1rem', borderRadius: '6px', color: '#94A3B8', fontSize: '0.9rem'}}>{wpConfig.url}</div>
                         </div>
                     ) : (
@@ -685,6 +719,11 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
       analysis.opportunities ||
       analysis.score !== undefined
     );
+
+    // CRITICAL FIX: Ensure arrays are always valid before mapping
+    const keyIssues = ensureArraySafe(analysis?.keyIssues, []);
+    const recommendations = ensureArraySafe(analysis?.recommendations, []);
+    const opportunities = ensureArraySafe(analysis?.opportunities, []);
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -850,7 +889,7 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
                             )}
 
                             {/* Key Issues */}
-                            {analysis.keyIssues && analysis.keyIssues.length > 0 && (
+                            {keyIssues.length > 0 && (
                                 <div style={{
                                   padding: '1.5rem',
                                   background: 'rgba(239, 68, 68, 0.1)',
@@ -872,7 +911,7 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
                                       paddingLeft: '1.25rem',
                                       color: 'var(--text-secondary)'
                                     }}>
-                                      {analysis.keyIssues.map((issue: string, idx: number) => (
+                                      {keyIssues.map((issue: string, idx: number) => (
                                         <li key={idx} style={{marginBottom: '0.5rem', lineHeight: '1.6'}}>
                                           {issue}
                                         </li>
@@ -882,7 +921,7 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
                             )}
 
                             {/* Recommendations */}
-                            {analysis.recommendations && analysis.recommendations.length > 0 && (
+                            {recommendations.length > 0 && (
                                 <div style={{
                                   padding: '1.5rem',
                                   background: 'rgba(59, 130, 246, 0.1)',
@@ -904,7 +943,7 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
                                       paddingLeft: '1.25rem',
                                       color: 'var(--text-secondary)'
                                     }}>
-                                      {analysis.recommendations.map((rec: string, idx: number) => (
+                                      {recommendations.map((rec: string, idx: number) => (
                                         <li key={idx} style={{marginBottom: '0.5rem', lineHeight: '1.6'}}>
                                           {rec}
                                         </li>
@@ -914,7 +953,7 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
                             )}
 
                             {/* Opportunities */}
-                            {analysis.opportunities && analysis.opportunities.length > 0 && (
+                            {opportunities.length > 0 && (
                                 <div style={{
                                   padding: '1.5rem',
                                   background: 'rgba(16, 185, 129, 0.1)',
@@ -936,7 +975,7 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
                                       paddingLeft: '1.25rem',
                                       color: 'var(--text-secondary)'
                                     }}>
-                                      {analysis.opportunities.map((opp: string, idx: number) => (
+                                      {opportunities.map((opp: string, idx: number) => (
                                         <li key={idx} style={{marginBottom: '0.5rem', lineHeight: '1.6'}}>
                                           {opp}
                                         </li>
@@ -946,7 +985,7 @@ export const AnalysisModal = ({ page, onClose, onPlanRewrite }: {
                             )}
 
                             {/* Raw Analysis Data (Debug) */}
-                            {!analysis.critique && !analysis.keyIssues && !analysis.recommendations && (
+                            {!analysis.critique && keyIssues.length === 0 && recommendations.length === 0 && (
                                 <div style={{
                                   padding: '1.5rem',
                                   background: 'var(--bg-surface)',
