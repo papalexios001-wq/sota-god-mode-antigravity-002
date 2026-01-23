@@ -145,20 +145,51 @@ export const AEO_GEO_RULES = `
    - Article schema with all required fields
 `;
 
-// ==================== INTERNAL LINKING RULES (SOTA 4-7 WORD ANCHORS) ====================
+// ==================== INTERNAL LINKING RULES (STRICT ENFORCEMENT) ====================
 export const INTERNAL_LINKING_RULES = `
 ═══════════════════════════════════════════════════════════════════════════════
 🔗 INTERNAL LINKING - CONTEXTUAL RICH ANCHOR TEXT (8-15 LINKS)
 ═══════════════════════════════════════════════════════════════════════════════
 
-CRITICAL REQUIREMENTS:
-1. NEVER front-load links in the introduction (max 1 link in first 10%)
-2. DISTRIBUTE links EVENLY across ALL sections using zone system
-3. ALL anchor text MUST be 4-7 words (NO EXCEPTIONS)
-4. Anchor text must be DESCRIPTIVE and preview the destination content
-5. NO generic anchors (click here, read more, learn more, this article)
+⛔ CRITICAL: YOUR ANCHOR TEXT QUALITY HAS BEEN POOR. FOLLOW THESE RULES EXACTLY.
 
-MANDATORY ZONE DISTRIBUTION:
+MANDATORY REQUIREMENTS:
+1. ALL anchor text MUST be 4-7 words (NO EXCEPTIONS)
+2. Anchor text MUST describe the destination page content
+3. NEVER start with: the, a, an, and, or, but, in, on, at, to, for, of, with, is, are, was, were
+4. NEVER end with: the, a, an, is, are, was, were, and, or, to, for, of, with
+5. MUST contain at least ONE descriptive/action word (guide, strategy, tips, method, training, care, health)
+
+FORMAT: [LINK_CANDIDATE: exactly four to seven descriptive words here]
+
+✅ EXCELLENT ANCHOR TEXT EXAMPLES (COPY THIS PATTERN):
+- "comprehensive French Bulldog care guide" ✓
+- "proven brachycephalic breed health strategies" ✓
+- "step-by-step puppy training methods" ✓
+- "essential French Bulldog nutrition tips" ✓
+- "complete guide to Frenchie grooming" ✓
+- "effective crate training techniques for puppies" ✓
+- "best practices for French Bulldog socialization" ✓
+
+❌ REJECTED ANCHOR TEXT (NEVER USE THESE PATTERNS):
+- "The French Bulldog isn't" ✗ (starts with THE, incomplete)
+- "French Bulldogs are" ✗ (ends with ARE, incomplete)
+- "a high-stakes commitment" ✗ (starts with A, generic)
+- "click here" ✗ (generic)
+- "read more" ✗ (generic)
+- "this article" ✗ (generic)
+- "is important for" ✗ (fragment)
+- "that can help" ✗ (fragment)
+- "and their owners" ✗ (fragment)
+
+ANCHOR TEXT FORMULA:
+[Adjective/Action] + [Topic/Subject] + [Content Type]
+Examples:
+- "proven" + "French Bulldog health" + "strategies"
+- "comprehensive" + "puppy care" + "guide"
+- "effective" + "brachycephalic breed" + "tips"
+
+ZONE DISTRIBUTION (MANDATORY):
 ┌─────────────────────┬──────────────┬─────────────┐
 │ ZONE                │ POSITION     │ MAX LINKS   │
 ├─────────────────────┼──────────────┼─────────────┤
@@ -169,32 +200,13 @@ MANDATORY ZONE DISTRIBUTION:
 │ FAQ_CONCLUSION      │ 80-100%      │ 2-3 links   │
 └─────────────────────┴──────────────┴─────────────┘
 
-ANCHOR TEXT QUALITY CHECKLIST:
-✅ EXCELLENT (4-7 words, descriptive):
-- "proven affiliate marketing conversion strategies"
-- "step-by-step email automation setup guide"
-- "high-converting landing page best practices"
-- "comprehensive keyword research methodology"
+SPACING: Minimum 200 words between links. Max 1 link per paragraph.
 
-❌ REJECTED (too short, generic, or toxic):
-- "click here" (TOXIC)
-- "read more" (TOXIC)
-- "this article" (TOXIC)
-- "SEO tips" (too short - only 2 words)
-- "marketing" (too short - only 1 word)
-
-ANCHOR TEXT RULES:
-1. First word CANNOT be: the, a, an, and, or, but, in, on, at, to, for, of, with
-2. Last word CANNOT be: the, a, an, and, or, but, in, on, at, to, for, of, with
-3. Must contain at least ONE descriptive/action word
-4. Should include topic + modifier + outcome pattern when possible
-
-FORMAT: [LINK_CANDIDATE: four to seven word descriptive anchor text]
-
-SPACING REQUIREMENTS:
-- Minimum 200 words between any two links
-- Maximum 1 link per paragraph
-- Never place link in first sentence of a section
+⚠️ BEFORE WRITING EACH LINK_CANDIDATE, ASK YOURSELF:
+1. Does this anchor describe what the user will learn when they click?
+2. Is it 4-7 descriptive words?
+3. Does it NOT start or end with a stopword?
+4. Would this anchor text make sense as a search query?
 `;
 
 // ==================== VISUAL HTML COMPONENTS v16.0 ====================
