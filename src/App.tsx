@@ -24,6 +24,9 @@ import {
   maintenanceEngine,
   fetchVerifiedReferences 
 } from './services';
+
+import { BulkPublishModal } from './BulkPublishModal';
+
 import {
   AppFooter, 
   AnalysisModal, 
