@@ -55,17 +55,15 @@ export const REFERENCE_CATEGORIES: Record<string, ReferenceCategory> = {
     keywords: ['finance', 'money', 'investing', 'stocks', 'crypto', 'banking', 'credit', 'mortgage', 'retirement', 'savings'],
     authorityDomains: ['investopedia.com', 'sec.gov', 'federalreserve.gov', 'morningstar.com', 'nerdwallet.com', 'bankrate.com'],
     searchModifiers: ['financial analysis', 'market research', 'investment guide', 'economic study', 'fiscal policy']
-  },
-  legal: {
-    keywords: ['legal', 'law', 'attorney', 'lawyer', 'court', 'rights', 'contract', 'litigation', 'compliance'],
-    authorityDomains: ['law.cornell.edu', 'findlaw.com', 'justia.com', 'americanbar.org', 'nolo.com'],
-    searchModifiers: ['legal guide', 'case law', 'statute', 'regulation', 'legal analysis']
   }
 };
 
-/**
- * Detect content category based on keywords
- */
+const BLOCKED_DOMAINS = [
+  'linkedin.com', 'facebook.com', 'twitter.com', 'instagram.com', 'x.com',
+  'pinterest.com', 'reddit.com', 'quora.com', 'medium.com',
+  'youtube.com', 'tiktok.com', 'amazon.com', 'ebay.com', 'etsy.com'
+];
+
 export function detectCategory(keyword: string, semanticKeywords: string[]): string {
   const allText = [keyword, ...semanticKeywords].join(' ').toLowerCase();
   
@@ -88,47 +86,20 @@ export function detectCategory(keyword: string, semanticKeywords: string[]): str
   return bestCategory;
 }
 
-/**
- * Determine authority level of a domain
- */
 export function determineAuthorityLevel(domain: string, category: string): 'high' | 'medium' | 'low' {
-  // Government and educational domains
   if (domain.endsWith('.gov') || domain.endsWith('.edu')) return 'high';
   
-  // International organizations
-  if (domain.endsWith('.org') && ['who.int', 'nih.gov', 'cdc.gov'].some(d => domain.includes(d))) return 'high';
-  
-  // Category-specific authority domains
   const categoryConfig = REFERENCE_CATEGORIES[category];
   if (categoryConfig?.authorityDomains.some(d => domain.includes(d))) return 'high';
   
-  // Well-known publications
   const majorPublications = ['nytimes.com', 'bbc.com', 'reuters.com', 'apnews.com', 'npr.org', 'theguardian.com'];
   if (majorPublications.some(d => domain.includes(d))) return 'high';
 
-  // Academic and research
-  if (domain.includes('ncbi') || domain.includes('pubmed') || domain.includes('scholar') || domain.includes('jstor')) return 'high';
-
-  // Known quality domains
-  const qualityDomains = ['harvard.edu', 'stanford.edu', 'mit.edu', 'oxford.ac.uk', 'cambridge.org'];
-  if (qualityDomains.some(d => domain.includes(d))) return 'high';
+  if (domain.includes('ncbi') || domain.includes('pubmed') || domain.includes('scholar')) return 'high';
 
   return 'medium';
 }
 
-/**
- * Blocked domains that should never be used as references
- */
-const BLOCKED_DOMAINS = [
-  'linkedin.com', 'facebook.com', 'twitter.com', 'instagram.com', 'x.com',
-  'pinterest.com', 'reddit.com', 'quora.com', 'medium.com',
-  'youtube.com', 'tiktok.com', 'amazon.com', 'ebay.com', 'etsy.com',
-  'wikipedia.org' // Can be used for research but not as primary citation
-];
-
-/**
- * Fetch and verify references using Serper API
- */
 export async function fetchVerifiedReferences(
   keyword: string,
   semanticKeywords: string[],
@@ -137,7 +108,7 @@ export async function fetchVerifiedReferences(
   logCallback?: (msg: string) => void
 ): Promise<{ html: string; references: VerifiedReference[] }> {
   if (!serperApiKey) {
-    logCallback?.('[References] ⚠️ No Serper API key - skipping reference fetch');
+    logCallback?.('[References] ⚠️ No Serper API key');
     return { html: '', references: [] };
   }
 
@@ -157,12 +128,9 @@ export async function fetchVerifiedReferences(
 
     let userDomain = '';
     if (wpUrl) {
-      try {
-        userDomain = new URL(wpUrl).hostname.replace('www.', '');
-      } catch (e) {}
+      try { userDomain = new URL(wpUrl).hostname.replace('www.', ''); } catch (e) {}
     }
 
-    // Build search queries based on category
     const searchQueries: string[] = [];
     
     if (categoryConfig) {
@@ -177,7 +145,6 @@ export async function fetchVerifiedReferences(
 
     const potentialReferences: any[] = [];
 
-    // Execute searches
     for (const query of searchQueries) {
       try {
         const response = await fetchWithProxies('https://google.serper.dev/search', {
@@ -200,7 +167,6 @@ export async function fetchVerifiedReferences(
 
     log(`Found ${potentialReferences.length} potential references, validating...`);
 
-    // Validate each reference
     const validatedReferences: VerifiedReference[] = [];
 
     for (const ref of potentialReferences) {
@@ -210,16 +176,10 @@ export async function fetchVerifiedReferences(
         const url = new URL(ref.link);
         const domain = url.hostname.replace('www.', '');
 
-        // Skip blocked domains
         if (BLOCKED_DOMAINS.some(d => domain.includes(d))) continue;
-        
-        // Skip own domain
         if (userDomain && domain.includes(userDomain)) continue;
-
-        // Skip if already have this domain
         if (validatedReferences.some(r => r.domain === domain)) continue;
 
-        // Validate link is accessible (HEAD request with timeout)
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -233,7 +193,6 @@ export async function fetchVerifiedReferences(
           });
           clearTimeout(timeoutId);
 
-          // ONLY accept 200 status
           if (checkResponse.status !== 200) {
             log(`Rejected: ${domain} (status ${checkResponse.status})`);
             continue;
@@ -243,7 +202,6 @@ export async function fetchVerifiedReferences(
           continue;
         }
 
-        // Determine authority level
         const authority = determineAuthorityLevel(domain, category);
 
         validatedReferences.push({
@@ -269,7 +227,6 @@ export async function fetchVerifiedReferences(
 
     log(`Successfully validated ${validatedReferences.length} references`);
 
-    // Generate HTML
     const html = generateReferencesHtml(validatedReferences, category, keyword);
 
     return { html, references: validatedReferences };
@@ -279,9 +236,6 @@ export async function fetchVerifiedReferences(
   }
 }
 
-/**
- * Generate beautiful HTML for references section
- */
 export function generateReferencesHtml(
   references: VerifiedReference[], 
   category: string, 
@@ -295,7 +249,6 @@ export function generateReferencesHtml(
     business: '📈',
     science: '🔬',
     finance: '💰',
-    legal: '⚖️',
     general: '📚'
   };
 
@@ -311,7 +264,7 @@ export function generateReferencesHtml(
   </p>
   <div style="display: grid; gap: 1rem;">
     ${references.map((ref, idx) => `
-    <div style="display: flex; gap: 1rem; padding: 1rem; background: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; border: 1px solid #e2e8f0;">
+    <div style="display: flex; gap: 1rem; padding: 1rem; background: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
       <div style="flex-shrink: 0; width: 32px; height: 32px; background: ${ref.authority === 'high' ? '#10B981' : '#3B82F6'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.85rem;">
         ${idx + 1}
       </div>
@@ -343,4 +296,3 @@ export default {
   REFERENCE_CATEGORIES,
   BLOCKED_DOMAINS
 };
-
