@@ -15,16 +15,6 @@ import {
   YouTubeSearchResult 
 } from './YouTubeService';
 
-// ❌ REMOVE THESE LINES:
-import { 
-  fetchVerifiedReferences as fetchRefsFromService,
-  generateReferencesHtml,
-  detectCategory,
-  determineAuthorityLevel,
-  REFERENCE_CATEGORIES,
-  VerifiedReference,
-  ReferenceCategory
-} from './ReferenceService';
 
 // Internal Link Orchestrator
 import { 
