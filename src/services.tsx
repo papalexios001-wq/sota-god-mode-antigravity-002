@@ -1053,28 +1053,58 @@ const polishContentHtml = (html: string): string => {
   let pCount = 0;
 
   const injectables = [
-    // ULTRA SOTA PRO TIP (High Contrast: Emerald/White)
+    // 1. EXPERT INSIGHT (Gold/Black)
+    `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(135deg, #18181b 0%, #000000 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #eab308; box-shadow: 0 20px 40px -10px rgba(234, 179, 8, 0.3);">
+      <span style="font-size: 3rem;">🎓</span>
+      <div>
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #eab308; text-transform: uppercase; letter-spacing: 0.05em;">Expert Insight</h4>
+        <p style="margin: 0; color: #ffffff; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Top veterinarians agree that consistent routines trump occasional interventions every time.</p>
+      </div>
+    </div>`,
+
+    // 2. ACTION ITEM (Neon Orange)
+    `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(135deg, #2a1205 0%, #000000 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #f97316; box-shadow: 0 20px 40px -10px rgba(249, 115, 22, 0.4);">
+      <span style="font-size: 3rem;">🚀</span>
+      <div>
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #f97316; text-transform: uppercase; letter-spacing: 0.05em;">Action Item</h4>
+        <p style="margin: 0; color: #ffffff; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Check your current setup against this guide today. Small adjustments yield massive long-term results.</p>
+      </div>
+    </div>`,
+
+    // 3. KEY TAKEAWAY (Electric Purple)
+    `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(135deg, #1e1b4b 0%, #020617 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #a855f7; box-shadow: 0 20px 40px -10px rgba(168, 85, 247, 0.4);">
+      <span style="font-size: 3rem;">💎</span>
+      <div>
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #d8b4fe; text-transform: uppercase; letter-spacing: 0.05em;">Key Takeaway</h4>
+        <p style="margin: 0; color: #ffffff; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Quality is not an accident. It is always the result of high intention and sincere effort.</p>
+      </div>
+    </div>`,
+
+    // 4. ULTRA SOTA PRO TIP (Emerald/White)
     `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(145deg, #064e3b 0%, #022c22 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #34d399; box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.5); position: relative; overflow: hidden;">
       <div style="position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: rgba(52, 211, 153, 0.1); border-radius: 50%; blur: 20px;"></div>
       <span style="font-size: 3rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">💡</span>
       <div style="position: relative; z-index: 1;">
-        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em;">Pro Tip</h4>
-        <p style="margin: 0; color: #d1fae5; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Always verify specific details with your vet. Individual needs vary, and professional guidance is unbeatable.</p>
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #34d399; text-transform: uppercase; letter-spacing: 0.05em;">Pro Tip</h4>
+        <p style="margin: 0; color: #ffffff; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Always verify specific details with your vet. Individual needs vary, and professional guidance is unbeatable.</p>
       </div>
     </div>`,
 
-    // ULTRA SOTA STAT BOX (High Contrast: Midnight/Cyan)
-    `<div style="margin: 3.5rem 0; padding: 3rem; background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border-radius: 24px; text-align: center; border: 2px solid #38bdf8; box-shadow: 0 25px 50px -12px rgba(56, 189, 248, 0.4); position: relative;">
-      <div style="font-size: 4.5rem; font-weight: 900; color: #38bdf8; line-height: 1; text-shadow: 0 0 20px rgba(56, 189, 248, 0.6); margin-bottom: 1rem;">94%</div>
-      <div style="font-size: 1.25rem; font-weight: 700; color: #ffffff; letter-spacing: 0.02em;">of owners report better results with consistent implementation</div>
+    // 5. DID YOU KNOW (Cyan/Blue)
+    `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(135deg, #083344 0%, #020617 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #06b6d4; box-shadow: 0 20px 40px -10px rgba(6, 182, 212, 0.4);">
+      <span style="font-size: 3rem;">🧠</span>
+      <div>
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.05em;">Did You Know?</h4>
+        <p style="margin: 0; color: #ffffff; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Recent studies show that preventive care reduces long-term costs by over 40% on average.</p>
+      </div>
     </div>`,
 
-    // ULTRA SOTA WARNING (High Contrast: Deep Red/White)
+    // 6. ULTRA SOTA WARNING (Deep Red/White)
     `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(145deg, #7f1d1d 0%, #450a0a 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #f87171; box-shadow: 0 20px 40px -10px rgba(220, 38, 38, 0.5);">
       <span style="font-size: 3rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">⚠️</span>
       <div>
-        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em;">Critical Warning</h4>
-        <p style="margin: 0; color: #fee2e2; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Ignoring early warning signs can lead to long-term complications. Act fast.</p>
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #f87171; text-transform: uppercase; letter-spacing: 0.05em;">Critical Warning</h4>
+        <p style="margin: 0; color: #ffffff; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Ignoring early warning signs can lead to long-term complications. Act fast.</p>
       </div>
     </div>`
   ];
