@@ -3,6 +3,36 @@
 // Complete Content Generation Engine with YouTube, References, Internal Links
 // =============================================================================
 
+// =============================================================================
+// ADD THESE IMPORTS AT THE TOP OF services.tsx
+// =============================================================================
+
+// YouTube Service
+import { 
+  searchYouTubeVideos, 
+  generateYouTubeEmbed,
+  findAndEmbedYouTubeVideo,
+  YouTubeSearchResult 
+} from './YouTubeService';
+
+// Reference Service
+import { 
+  fetchVerifiedReferences as fetchRefsFromService,
+  generateReferencesHtml,
+  detectCategory,
+  determineAuthorityLevel,
+  REFERENCE_CATEGORIES,
+  VerifiedReference 
+} from './ReferenceService';
+
+// Internal Link Orchestrator
+import { 
+  InternalLinkOrchestrator,
+  createLinkOrchestrator,
+  LinkCandidate 
+} from './InternalLinkOrchestrator';
+
+
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
