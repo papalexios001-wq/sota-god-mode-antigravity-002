@@ -317,7 +317,6 @@ let cleaned = response.trim();
 // ✅ FIX Step 1.5: Remove problematic characters (backticks, etc.) cleaned = removeProblematicCharacters(cleaned);
 // Step 2: Find JSON boundaries using balanced bracket matching const jsonObjectMatch = findBalancedJson(cleaned, "{", "}"); const jsonArrayMatch = findBalancedJson(cleaned, "[", "]");
 // Determine which match to use based on position if (jsonObjectMatch && jsonArrayMatch) { const objectIndex = cleaned.indexOf(jsonObjectMatch); const arrayIndex = cleaned.indexOf(jsonArrayMatch);
-text
 
 
 if (objectIndex !== -1 && arrayIndex !== -1) {
@@ -337,34 +336,29 @@ Finds balanced JSON structure in text using bracket matching.
 @returns Balanced JSON string or null */ const findBalancedJson = ( text: string, openChar: string, closeChar: string ): string | null => { const startIndex = text.indexOf(openChar); if (startIndex === -1) return null;
 let depth = 0; let inString = false; let escapeNext = false;
 for (let i = startIndex; i < text.length; i++) { const char = text[i];
-text
 
 
 if (escapeNext) {
   escapeNext = false;
   continue;
 }
-text
 
 
 if (char === "\\") {
   escapeNext = true;
   continue;
 }
-text
 
 
 if (char === '"') {
   inString = !inString;
   continue;
 }
-text
 
 
 if (!inString) {
   if (char === openChar) depth++;
   if (char === closeChar) depth--;
-text
 
 
   if (depth === 0) {
@@ -420,7 +414,6 @@ const data = await parseJsonWithAiRepair(
 aiResponse,
 async (broken) => await askAiToFixJson(broken)
 );
-text
 
 
 */ export const parseJsonWithAiRepair = async <T = unknown>( responseText: string, aiRepairer?: (brokenText: string) => Promise<string> ): Promise<T> => { if (!responseText || typeof responseText !== "string") { throw new Error("Invalid response text for JSON parsing"); }
@@ -456,23 +449,19 @@ const results = await processConcurrently(
 urls,
 async (url) => await fetchData(url),
 {
-text
 
 
 concurrency: 5,
-text
 
 
 onProgress: (current, total) => console.log(`${current}/${total}`)
 }
 );
-text
 
 
 */ export const processConcurrently = async <T, R>( items: T[], processor: (item: T, index: number) => Promise<R>, options: ConcurrencyOptions<T, R> = {} ): Promise<R[]> => { const { concurrency = 3, onProgress, shouldStop, onError, } = options;
 const results: R[] = new Array(items.length); let currentIndex = 0; let completedCount = 0; const total = items.length;
 const processNext = async (): Promise<void> => { while (currentIndex < items.length) { if (shouldStop?.()) { console.log("[processConcurrently] Stop signal received, halting..."); break; }
-text
 
 
   const index = currentIndex++;
@@ -650,7 +639,6 @@ Deep merges multiple objects together.
 @returns Merged object */ export const deepMerge = <T extends Record<string, unknown>>( target: T, ...sources: Partial<T>[] ): T => { if (!sources.length) return target;
 const source = sources.shift(); if (!source) return target;
 for (const key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { const sourceValue = source[key]; const targetValue = target[key];
-text
 
 
   if (
