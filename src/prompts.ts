@@ -297,7 +297,7 @@ ${existingSummary ? `## CONTEXT: ${existingSummary}` : ""}
 Write the intro. First sentence = direct answer in <strong> tags. Return HTML only.`
   },
 
-  // ==================== ULTRA SOTA ARTICLE WRITER (MAIN) ====================
+  // ==================== ULTRA SOTA ARTICLE WRITER (MAIN) - v23.1 ====================
   ultra_sota_article_writer: {
     systemInstruction: `You are an ELITE content writer creating the HIGHEST QUALITY articles for ${TARGET_YEAR}.
 
