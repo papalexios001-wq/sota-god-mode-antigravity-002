@@ -1053,27 +1053,28 @@ const polishContentHtml = (html: string): string => {
   let pCount = 0;
 
   const injectables = [
-    // Pro Tip
-    `<div style="display: flex; gap: 1.25rem; padding: 1.75rem; background: #f0fdf4; border-radius: 16px; margin: 2.5rem 0; border-left: 6px solid #16a34a; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-      <span style="font-size: 2rem;">💡</span>
-      <div>
-        <h4 style="margin: 0 0 0.5rem; font-size: 1.2rem; font-weight: 800; color: #15803d;">Pro Tip</h4>
-        <p style="margin: 0; color: #14532d; line-height: 1.6; font-weight: 500;">Always verify specific details with your vet, as individual needs vary.</p>
+    // ULTRA SOTA PRO TIP (High Contrast: Emerald/White)
+    `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(145deg, #064e3b 0%, #022c22 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #34d399; box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.5); position: relative; overflow: hidden;">
+      <div style="position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: rgba(52, 211, 153, 0.1); border-radius: 50%; blur: 20px;"></div>
+      <span style="font-size: 3rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">💡</span>
+      <div style="position: relative; z-index: 1;">
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em;">Pro Tip</h4>
+        <p style="margin: 0; color: #d1fae5; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Always verify specific details with your vet. Individual needs vary, and professional guidance is unbeatable.</p>
       </div>
     </div>`,
 
-    // Auto Stat
-    `<div style="margin: 2.5rem 0; padding: 2rem; background: #1e293b; border-radius: 16px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-      <div style="font-size: 3rem; font-weight: 900; color: #38bdf8; line-height: 1;">94%</div>
-      <div style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-top: 0.5rem;">of owners report better results with consistent implementation</div>
+    // ULTRA SOTA STAT BOX (High Contrast: Midnight/Cyan)
+    `<div style="margin: 3.5rem 0; padding: 3rem; background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border-radius: 24px; text-align: center; border: 2px solid #38bdf8; box-shadow: 0 25px 50px -12px rgba(56, 189, 248, 0.4); position: relative;">
+      <div style="font-size: 4.5rem; font-weight: 900; color: #38bdf8; line-height: 1; text-shadow: 0 0 20px rgba(56, 189, 248, 0.6); margin-bottom: 1rem;">94%</div>
+      <div style="font-size: 1.25rem; font-weight: 700; color: #ffffff; letter-spacing: 0.02em;">of owners report better results with consistent implementation</div>
     </div>`,
 
-    // Warning
-    `<div style="display: flex; gap: 1.25rem; padding: 1.75rem; background: #fef2f2; border-radius: 16px; margin: 2.5rem 0; border-left: 6px solid #dc2626; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-      <span style="font-size: 2rem;">⚠️</span>
+    // ULTRA SOTA WARNING (High Contrast: Deep Red/White)
+    `<div style="display: flex; gap: 1.5rem; padding: 2.5rem; background: linear-gradient(145deg, #7f1d1d 0%, #450a0a 100%); border-radius: 24px; margin: 3.5rem 0; border: 2px solid #f87171; box-shadow: 0 20px 40px -10px rgba(220, 38, 38, 0.5);">
+      <span style="font-size: 3rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">⚠️</span>
       <div>
-        <h4 style="margin: 0 0 0.5rem; font-size: 1.2rem; font-weight: 800; color: #991b1b;">Critical Warning</h4>
-        <p style="margin: 0; color: #7f1d1d; line-height: 1.6; font-weight: 500;">Ignoring early warning signs can lead to long-term complications.</p>
+        <h4 style="margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em;">Critical Warning</h4>
+        <p style="margin: 0; color: #fee2e2; line-height: 1.6; font-weight: 600; font-size: 1.1rem;">Ignoring early warning signs can lead to long-term complications. Act fast.</p>
       </div>
     </div>`
   ];
