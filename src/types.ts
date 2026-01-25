@@ -463,7 +463,7 @@ export interface PromptTemplates {
 
 
 // =============================================================================
-// ADD THESE NEW TYPES TO YOUR EXISTING types.ts FILE
+// ADD THESE NEW TYPES TO YOUR EXISTING types.ts FILE (at the bottom)
 // =============================================================================
 
 // YouTube Video Type
@@ -474,6 +474,8 @@ export interface YouTubeVideo {
   description: string;
   thumbnail: string;
   relevanceScore: number;
+  publishedAt?: string;
+  duration?: string;
 }
 
 // Verified Reference Type
@@ -495,35 +497,6 @@ export interface GenerationAnalytics {
   timestamp: Date;
 }
 
-// Enhanced Generated Content (update existing if present)
-export interface GeneratedContent {
-  title: string;
-  content: string;
-  metaDescription: string;
-  slug: string;
-  schemaMarkup: string;
-  primaryKeyword: string;
-  semanticKeywords: string[];
-  // NEW FIELDS:
-  youtubeVideo?: {
-    title: string;
-    videoId: string;
-    embedded: boolean;
-  } | null;
-  references?: {
-    title: string;
-    url: string;
-    verified: boolean;
-  }[];
-  internalLinks?: {
-    anchor: string;
-    targetSlug: string;
-    targetTitle: string;
-    score: number;
-    wordCount: number;
-  }[];
-}
-
 // Internal Link Candidate Type
 export interface InternalLinkCandidate {
   anchorText: string;
@@ -536,3 +509,19 @@ export interface InternalLinkCandidate {
   position: number;
   paragraphIndex: number;
 }
+
+// Extended GeneratedContent (update your existing interface)
+// ADD these fields to your existing GeneratedContent interface:
+/*
+  youtubeVideo?: {
+    title: string;
+    videoId: string;
+    embedded: boolean;
+  } | null;
+  references?: {
+    title: string;
+    url: string;
+    verified: boolean;
+  }[];
+  internalLinks?: InternalLinkCandidate[];
+*/
