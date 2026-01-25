@@ -4,6 +4,8 @@
 
 import { fetchWithProxies } from './contentUtils';
 
+// ==================== EXPORTED TYPES ====================
+
 export interface VerifiedReference {
   title: string;
   url: string;
@@ -19,6 +21,8 @@ export interface ReferenceCategory {
   authorityDomains: string[];
   searchModifiers: string[];
 }
+
+// ==================== CONSTANTS ====================
 
 export const REFERENCE_CATEGORIES: Record<string, ReferenceCategory> = {
   health: {
@@ -58,11 +62,13 @@ export const REFERENCE_CATEGORIES: Record<string, ReferenceCategory> = {
   }
 };
 
-const BLOCKED_DOMAINS = [
+export const BLOCKED_DOMAINS: string[] = [
   'linkedin.com', 'facebook.com', 'twitter.com', 'instagram.com', 'x.com',
   'pinterest.com', 'reddit.com', 'quora.com', 'medium.com',
   'youtube.com', 'tiktok.com', 'amazon.com', 'ebay.com', 'etsy.com'
 ];
+
+// ==================== FUNCTIONS ====================
 
 export function detectCategory(keyword: string, semanticKeywords: string[]): string {
   const allText = [keyword, ...semanticKeywords].join(' ').toLowerCase();
@@ -287,12 +293,3 @@ export function generateReferencesHtml(
   </div>
 </div>`;
 }
-
-export default {
-  fetchVerifiedReferences,
-  generateReferencesHtml,
-  detectCategory,
-  determineAuthorityLevel,
-  REFERENCE_CATEGORIES,
-  BLOCKED_DOMAINS
-};
