@@ -16,6 +16,7 @@ import { generateFullSchema } from './schema-generator';
 import { PROMPT_TEMPLATES } from './prompts';
 import { AI_MODELS, STORAGE_KEYS, PROCESSING_LIMITS, FEATURE_FLAGS } from './constants';
 import { itemsReducer, loadItemsFromStorage, saveItemsToStorage, computeStats } from './state';
+// REPLACE it with:
 import { 
   callAI, 
   generateContent, 
@@ -28,14 +29,16 @@ import {
   generationAnalytics
 } from './services';
 
-// NEW SERVICE IMPORTS
+// ADD these NEW imports after the services import:
 import { 
   searchYouTubeVideos, 
-  generateYouTubeEmbed 
+  generateYouTubeEmbed,
+  findAndEmbedYouTubeVideo 
 } from './YouTubeService';
 
 import { 
-  fetchVerifiedReferences as fetchReferences,
+  fetchVerifiedReferences as fetchReferencesService,
+  generateReferencesHtml,
   detectCategory,
   REFERENCE_CATEGORIES 
 } from './ReferenceService';
