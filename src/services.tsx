@@ -8,25 +8,25 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { PROMPT_TEMPLATES } from './prompts';
 import { generateFullSchema } from './schema-generator';
-import { 
-  ContentItem, 
-  GeneratedContent, 
-  SitemapPage, 
-  GenerationContext, 
-  ApiClients, 
-  WpConfig, 
+import {
+  ContentItem,
+  GeneratedContent,
+  SitemapPage,
+  GenerationContext,
+  ApiClients,
+  WpConfig,
   ExpandedGeoTargeting,
   GapAnalysisSuggestion
 } from './types';
-import { 
-  fetchWithProxies, 
-  smartCrawl, 
-  processInternalLinks, 
-  surgicalSanitizer 
+import {
+  fetchWithProxies,
+  smartCrawl,
+  processInternalLinks,
+  surgicalSanitizer
 } from './contentUtils';
-import { 
-  callAiWithRetry, 
-  extractSlugFromUrl, 
+import {
+  callAiWithRetry,
+  extractSlugFromUrl,
   sanitizeTitle,
   delay,
   safeParseJSON
@@ -89,10 +89,10 @@ class AnalyticsEngine {
       timestamp: new Date()
     };
     this.logs.push(analytics);
-    
+
     const formattedMsg = `[${new Date().toLocaleTimeString()}] ${this.getEmoji(phase)} ${message}`;
     console.log(formattedMsg, details);
-    
+
     if (this.callback) {
       this.callback(formattedMsg, analytics);
     }
@@ -123,7 +123,7 @@ class AnalyticsEngine {
     return {
       totalPhases: this.logs.length,
       phases: this.logs.map(l => l.phase),
-      duration: this.logs.length > 1 
+      duration: this.logs.length > 1
         ? (this.logs[this.logs.length - 1].timestamp.getTime() - this.logs[0].timestamp.getTime()) / 1000
         : 0
     };
@@ -336,7 +336,7 @@ export const fetchVerifiedReferences = async (
     const currentYear = new Date().getFullYear();
     let userDomain = '';
     if (wpUrl) {
-      try { userDomain = new URL(wpUrl).hostname.replace('www.', ''); } catch (e) {}
+      try { userDomain = new URL(wpUrl).hostname.replace('www.', ''); } catch (e) { }
     }
 
     const query = `${keyword} "research" "study" "data" "statistics" ${currentYear}`;
@@ -431,45 +431,47 @@ export const fetchVerifiedReferences = async (
 
 function determineAuthorityLevel(domain: string): 'high' | 'medium' | 'low' {
   if (domain.endsWith('.gov') || domain.endsWith('.edu')) return 'high';
-  
+
   const highAuthority = [
     'nih.gov', 'cdc.gov', 'who.int', 'mayoclinic.org', 'healthline.com',
     'nature.com', 'science.org', 'ieee.org', 'acm.org',
     'hbr.org', 'forbes.com', 'bloomberg.com', 'wsj.com',
     'nytimes.com', 'bbc.com', 'reuters.com', 'apnews.com', 'npr.org'
   ];
-  
+
   if (highAuthority.some(d => domain.includes(d))) return 'high';
   return 'medium';
 }
 
 function generateReferencesHtml(references: VerifiedReference[], keyword: string): string {
+  const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
   return `
-<div class="sota-references-section" style="margin: 3rem 0; padding: 2rem; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 16px; border-left: 5px solid #3B82F6;">
-  <h2 style="display: flex; align-items: center; gap: 0.75rem; margin: 0 0 1.5rem; color: #1e293b; font-size: 1.5rem;">
-    <span>📚</span> Trusted References & Further Reading
+<div style="margin: 3rem 0; padding: 2rem; background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%); border-radius: 20px; border-left: 5px solid #3b82f6; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
+  <h2 style="display: flex; align-items: center; gap: 0.75rem; margin: 0 0 1.5rem; color: #e2e8f0; font-size: 1.5rem; font-weight: 800;">
+    <span style="font-size: 1.75rem;">📚</span> References & Further Reading
   </h2>
   <p style="margin: 0 0 1.5rem; color: #64748b; font-size: 0.9rem;">
-    ✅ All sources verified as of ${new Date().toLocaleDateString()} • ${references.length} authoritative references
+    ✅ All sources verified as of ${currentDate} • ${references.length} authoritative references
   </p>
-  <div style="display: grid; gap: 1rem;">
+  <div style="display: grid; gap: 0.75rem;">
     ${references.map((ref, idx) => `
-    <div style="display: flex; gap: 1rem; padding: 1rem; background: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-      <div style="flex-shrink: 0; width: 32px; height: 32px; background: ${ref.authority === 'high' ? '#10B981' : '#3B82F6'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.85rem;">
+    <div style="display: flex; gap: 1rem; padding: 1.25rem; background: rgba(59, 130, 246, 0.08); border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.15); transition: all 0.2s ease;">
+      <div style="flex-shrink: 0; width: 36px; height: 36px; background: ${ref.authority === 'high' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.9rem; box-shadow: 0 2px 8px ${ref.authority === 'high' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)'};">
         ${idx + 1}
       </div>
       <div style="flex: 1; min-width: 0;">
-        <a href="${ref.url}" target="_blank" rel="noopener noreferrer" style="color: #1e40af; text-decoration: none; font-weight: 600; font-size: 1rem; display: block; margin-bottom: 0.25rem;">
+        <a href="${ref.url}" target="_blank" rel="noopener noreferrer" style="color: #60a5fa; text-decoration: none; font-weight: 600; font-size: 1rem; display: block; margin-bottom: 0.35rem; line-height: 1.4;">
           ${ref.title}
         </a>
-        <p style="margin: 0 0 0.5rem; color: #64748b; font-size: 0.85rem; line-height: 1.5;">
-          ${ref.description.substring(0, 150)}${ref.description.length > 150 ? '...' : ''}
+        <p style="margin: 0 0 0.5rem; color: #94a3b8; font-size: 0.85rem; line-height: 1.5;">
+          ${ref.description.substring(0, 120)}${ref.description.length > 120 ? '...' : ''}
         </p>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="padding: 2px 8px; background: ${ref.authority === 'high' ? '#dcfce7' : '#e0f2fe'}; color: ${ref.authority === 'high' ? '#166534' : '#0369a1'}; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">
-            ${ref.authority} authority
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          <span style="padding: 3px 10px; background: ${ref.authority === 'high' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${ref.authority === 'high' ? '#34d399' : '#60a5fa'}; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">
+            ${ref.authority === 'high' ? '⭐ HIGH' : '✓ MEDIUM'} AUTHORITY
           </span>
-          <span style="color: #94a3b8; font-size: 0.75rem;">${ref.domain}</span>
+          <span style="color: #64748b; font-size: 0.75rem;">${ref.domain}</span>
         </div>
       </div>
     </div>
@@ -493,9 +495,9 @@ export const generateEnhancedInternalLinks = async (
     return { html: content, linkCount: 0, links: [] };
   }
 
-  analytics.log('links', 'Generating enhanced internal links...', { 
+  analytics.log('links', 'Generating enhanced internal links...', {
     pageCount: existingPages.length,
-    keyword: primaryKeyword 
+    keyword: primaryKeyword
   });
 
   const doc = new DOMParser().parseFromString(content, 'text/html');
@@ -527,25 +529,25 @@ export const generateEnhancedInternalLinks = async (
     if (paragraph.querySelectorAll('a').length >= 2) continue;
 
     const paragraphText = paragraph.textContent || '';
-    
+
     for (const page of linkablePages) {
       if (usedSlugs.has(page.slug)) continue;
       if (injectedLinks.length >= targetLinkCount) break;
 
       const anchor = findContextualAnchor(paragraphText, page);
-      
+
       if (anchor && anchor.score >= 0.5) {
         if (paragraphText.toLowerCase().includes(anchor.text.toLowerCase())) {
           const linkUrl = `/${page.slug}/`;
           const linkHtml = `<a href="${linkUrl}">${anchor.text}</a>`;
-          
+
           const escapedAnchor = anchor.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp(`\\b${escapedAnchor}\\b`, 'i');
-          
+
           if (regex.test(paragraph.innerHTML) && !paragraph.innerHTML.includes(`href="${linkUrl}"`)) {
             paragraph.innerHTML = paragraph.innerHTML.replace(regex, linkHtml);
             usedSlugs.add(page.slug);
-            
+
             injectedLinks.push({
               anchor: anchor.text,
               targetSlug: page.slug,
@@ -594,7 +596,7 @@ function findContextualAnchor(paragraphText: string, page: SitemapPage): AnchorC
     for (let i = 0; i <= words.length - phraseLen; i++) {
       const phraseWords = words.slice(i, i + phraseLen);
       const phrase = phraseWords.join(' ').replace(/[.,!?;:'"]/g, '').trim();
-      
+
       if (phrase.length < 15) continue;
 
       const phraseLower = phrase.toLowerCase();
@@ -652,7 +654,7 @@ export const callAI = async (
     : String(promptTemplate.userPrompt);
 
   const modelOrder = [selectedModel, 'gemini', 'anthropic', 'openai', 'openrouter', 'groq'];
-  
+
   for (const model of modelOrder) {
     const client = apiClients[model as keyof ApiClients];
     if (!client) continue;
@@ -786,10 +788,10 @@ const analyzePages = async (
           prev.map(p =>
             p.id === page.id
               ? {
-                  ...p,
-                  status: 'error' as const,
-                  justification: 'Content too short or inaccessible',
-                }
+                ...p,
+                status: 'error' as const,
+                justification: 'Content too short or inaccessible',
+              }
               : p
           )
         );
@@ -818,14 +820,14 @@ const analyzePages = async (
           prev.map(p =>
             p.id === page.id
               ? {
-                  ...p,
-                  status: 'analyzed' as const,
-                  crawledContent: content,
-                  healthScore: analysis.healthScore,
-                  updatePriority: analysis.updatePriority,
-                  justification: analysis.justification || analysis.recommendations?.[0] || null,
-                  analysis,
-                }
+                ...p,
+                status: 'analyzed' as const,
+                crawledContent: content,
+                healthScore: analysis.healthScore,
+                updatePriority: analysis.updatePriority,
+                justification: analysis.justification || analysis.recommendations?.[0] || null,
+                analysis,
+              }
               : p
           )
         );
@@ -838,10 +840,10 @@ const analyzePages = async (
         prev.map(p =>
           p.id === page.id
             ? {
-                ...p,
-                status: 'error' as const,
-                justification: error.message || 'Analysis failed',
-              }
+              ...p,
+              status: 'error' as const,
+              justification: error.message || 'Analysis failed',
+            }
             : p
         )
       );
@@ -890,7 +892,7 @@ export const generateContent = {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      
+
       if (stopRef.current.has(item.id)) {
         dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'idle', statusText: 'Stopped' } });
         continue;
@@ -922,7 +924,7 @@ export const generateContent = {
 
         // Phase 2: Semantic Keywords
         dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'generating', statusText: '🏷️ Keywords...' } });
-        
+
         let semanticKeywords: string[] = [];
         try {
           const keywordResponse = await callAIFn('semantic_keyword_generator', [item.title, geoTargeting.location || null, serpData], 'json');
@@ -954,7 +956,7 @@ export const generateContent = {
         dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'generating', statusText: '🔗 Links...' } });
         let contentWithLinks = contentResponse;
         let linkResult = { linkCount: 0, links: [] as any[] };
-        
+
         if (existingPages.length > 0) {
           const linkingResult = await generateEnhancedInternalLinks(
             contentResponse, existingPages, item.title, null, ''
@@ -986,7 +988,7 @@ export const generateContent = {
 
         // Phase 8: Schema
         dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'generating', statusText: '📋 Schema...' } });
-        
+
         const schemaData = generateFullSchema({
           pageType: item.type === 'pillar' ? 'pillar' : 'article',
           title: item.title,
@@ -1035,7 +1037,7 @@ export const generateContent = {
     aiRepairer: any
   ) {
     const { dispatch, existingPages, wpConfig, serperApiKey } = context;
-    
+
     try {
       if (!item.crawledContent) {
         throw new Error('No crawled content available');
@@ -1053,7 +1055,7 @@ export const generateContent = {
       }
 
       dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'generating', statusText: '✨ Optimizing...' } });
-      
+
       const optimizedContent = await callAIFn(
         'content_refresher',
         [item.crawledContent, item.title, semanticKeywords],
@@ -1205,7 +1207,7 @@ export const generateImageWithFallback = async (
         contents: prompt,
         generationConfig: { responseModalities: ['image'] }
       });
-      
+
       if (result?.response?.candidates?.[0]?.content?.parts) {
         const imagePart = result.response.candidates[0].content.parts.find(
           (p: any) => p.inlineData?.mimeType?.startsWith('image/')
@@ -1228,7 +1230,7 @@ export const generateImageWithFallback = async (
         size: '1024x1024',
         response_format: 'b64_json'
       });
-      
+
       if (response.data[0]?.b64_json) {
         return `data:image/png;base64,${response.data[0].b64_json}`;
       }
@@ -1302,7 +1304,7 @@ class MaintenanceEngine {
 
     let pagesToProcess = existingPages.filter(page => {
       if (excludedUrls?.some(url => page.id.includes(url))) return false;
-      
+
       const lastProcessed = localStorage.getItem(`sota_last_proc_${page.id}`);
       if (lastProcessed) {
         const hoursSince = (Date.now() - parseInt(lastProcessed)) / (1000 * 60 * 60);
@@ -1348,7 +1350,7 @@ class MaintenanceEngine {
 
     this.log('📥 Crawling page content...');
     const content = await smartCrawl(page.id);
-    
+
     if (!content || content.length < 500) {
       throw new Error('Content too short to optimize');
     }
