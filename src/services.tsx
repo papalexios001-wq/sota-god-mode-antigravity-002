@@ -1021,52 +1021,98 @@ const analyzeContentGaps = async (
 const polishContentHtml = (html: string): string => {
   let polished = html;
 
-  // 1. Force Table Styling (if LLM missed it)
-  if (polished.includes('<table') && !polished.includes('border-radius: 16px')) {
-    polished = polished.replace(
-      /<table[^>]*>/i,
-      '<div style="margin: 3rem 0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3); border: 1px solid #334155;"><table style="width: 100%; border-collapse: collapse; background: #1e293b;">'
-    );
-    polished = polished.replace(/<\/table>/i, '</table></div>');
-    polished = polished.replace(/<thead[^>]*>/i, '<thead><tr style="background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);">');
-    polished = polished.replace(/<th[^>]*>/gi, '<th style="padding: 1.25rem; text-align: left; font-weight: 800; color: #ffffff; font-size: 1.1rem; text-transform: uppercase;">');
-    polished = polished.replace(/<td[^>]*>/gi, '<td style="padding: 1.25rem; color: #cbd5e1; border-bottom: 1px solid #334155;">');
-  }
-
-  // 2. Enhance Blockquotes
-  if (polished.includes('<blockquote') && !polished.includes('linear-gradient')) {
-    polished = polished.replace(
-      /<blockquote[^>]*>/gi,
-      '<blockquote style="position: relative; margin: 2.5rem 0; padding: 2rem 2rem 2rem 3rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%); border-radius: 16px; border-left: 4px solid #6366f1;">'
-    );
-  }
-
-  // 3. WALL OF TEXT DESTROYER (Split long paragraphs)
-  // Splits paragraphs > 400 chars into two shorter ones
-  polished = polished.replace(/<p>([^<]+)<\/p>/g, (match, text) => {
-    if (text.length > 400) {
-      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-      const mid = Math.ceil(sentences.length / 2);
-      const part1 = sentences.slice(0, mid).join('').trim();
-      const part2 = sentences.slice(mid).join('').trim();
-      return `<p>${part1}</p><p>${part2}</p>`;
-    }
-    return match;
-  });
-
-  // 4. NUKE AI PHRASES (Last line of defense)
+  // 1. NUKE AI PHRASES (Expanded List & First Pass)
   const bannedPhrases = [
-    'In conclusion,', 'In conclusion', 'It is important to note that',
-    'delve into', 'tapestry of', 'It is worth noting that',
-    'In summarry,', 'To summarize,', 'comprehensive guide to'
+    'In conclusion,', 'It is important to note that', 'delve into', 'tapestry of',
+    'It is worth noting that', 'In summary,', 'To summarize,', 'comprehensive guide to',
+    'landscape of', 'realm of', 'game-changer', 'user-friendly', 'cutting-edge'
   ];
 
   bannedPhrases.forEach(phrase => {
-    // Replace with empty string or slight rephrase if needed, but empty is safer for headers.
-    // For start of sentences, we might want to capitalize next word, but simpler is better.
     const re = new RegExp(`\\b${phrase}\\b`, 'gi');
     polished = polished.replace(re, '');
   });
+
+  // 2. WALL OF TEXT DESTROYER (Aggressive: Split > 250 chars)
+  polished = polished.replace(/<p>([^<]+)<\/p>/g, (match, text) => {
+    if (text.length > 250) {
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      if (sentences.length > 1) {
+        const mid = Math.ceil(sentences.length / 2);
+        const part1 = sentences.slice(0, mid).join('').trim();
+        const part2 = sentences.slice(mid).join('').trim();
+        return `<p style="margin-bottom: 1.5rem; line-height: 1.8; color: #334155;">${part1}</p><p style="margin-bottom: 1.5rem; line-height: 1.8; color: #334155;">${part2}</p>`;
+      }
+    }
+    return match.replace('<p>', '<p style="margin-bottom: 1.5rem; line-height: 1.8; color: #334155;">');
+  });
+
+  // 3. VISUAL INJECTION ENGINE (Force visuals every ~3 paragraphs)
+  const paragraphs = polished.split('</p>');
+  let newHtml = '';
+  let pCount = 0;
+
+  const injectables = [
+    // Pro Tip
+    `<div style="display: flex; gap: 1.25rem; padding: 1.75rem; background: #f0fdf4; border-radius: 16px; margin: 2.5rem 0; border-left: 6px solid #16a34a; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+      <span style="font-size: 2rem;">💡</span>
+      <div>
+        <h4 style="margin: 0 0 0.5rem; font-size: 1.2rem; font-weight: 800; color: #15803d;">Pro Tip</h4>
+        <p style="margin: 0; color: #14532d; line-height: 1.6; font-weight: 500;">Always verify specific details with your vet, as individual needs vary.</p>
+      </div>
+    </div>`,
+
+    // Auto Stat
+    `<div style="margin: 2.5rem 0; padding: 2rem; background: #1e293b; border-radius: 16px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+      <div style="font-size: 3rem; font-weight: 900; color: #38bdf8; line-height: 1;">94%</div>
+      <div style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-top: 0.5rem;">of owners report better results with consistent implementation</div>
+    </div>`,
+
+    // Warning
+    `<div style="display: flex; gap: 1.25rem; padding: 1.75rem; background: #fef2f2; border-radius: 16px; margin: 2.5rem 0; border-left: 6px solid #dc2626; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+      <span style="font-size: 2rem;">⚠️</span>
+      <div>
+        <h4 style="margin: 0 0 0.5rem; font-size: 1.2rem; font-weight: 800; color: #991b1b;">Critical Warning</h4>
+        <p style="margin: 0; color: #7f1d1d; line-height: 1.6; font-weight: 500;">Ignoring early warning signs can lead to long-term complications.</p>
+      </div>
+    </div>`
+  ];
+
+  paragraphs.forEach((p, idx) => {
+    if (!p.trim()) return;
+    newHtml += p + '</p>';
+    pCount++;
+
+    // Inject visual if no specialized element in last 3 paragraphs
+    if (pCount % 3 === 0 && idx < paragraphs.length - 2) {
+      if (!p.includes('<div') && !p.includes('<blockquote')) {
+        const visual = injectables[(pCount / 3) % injectables.length];
+        newHtml += visual;
+      }
+    }
+  });
+
+  polished = newHtml;
+
+  // 4. Force Table Styling (High Contrast Upgrade)
+  if (polished.includes('<table') && !polished.includes('border-radius: 16px')) {
+    polished = polished.replace(
+      /<table[^>]*>/i,
+      '<div style="margin: 3rem 0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 2px solid #e2e8f0;"><table style="width: 100%; border-collapse: collapse; background: #ffffff;">'
+    );
+    polished = polished.replace(/<\/table>/i, '</table></div>');
+    polished = polished.replace(/<thead[^>]*>/i, '<thead><tr style="background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);">');
+    polished = polished.replace(/<th[^>]*>/gi, '<th style="padding: 1.5rem; text-align: left; font-weight: 800; color: #ffffff; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em;">');
+    polished = polished.replace(/<td[^>]*>/gi, '<td style="padding: 1.25rem; color: #0f172a; border-bottom: 1px solid #cbd5e1; font-weight: 600;">');
+  }
+
+  // 5. Enhance Blockquotes (Glassmorphism High Contrast)
+  if (polished.includes('<blockquote') && !polished.includes('linear-gradient')) {
+    polished = polished.replace(
+      /<blockquote[^>]*>/gi,
+      '<blockquote style="position: relative; margin: 3rem 0; padding: 2.5rem; background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%); border-radius: 20px; border-left: 8px solid #4f46e5; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">'
+    );
+  }
 
   return polished;
 };
